@@ -66,10 +66,10 @@ public class WifiNetworkService implements NetworkService {
     public static final String SERVICE_REG_TYPE = "_presence._tcp";
     public static final int SERVICE_PORT = 5001;
 
-    public static final int ADVERTISE_DURATION = 3000;
+    public static final int ADVERTISE_DURATION = 1000;
     public static final int DISCOVERY_DURATION = 9000;
-    public static final int SLEEP_DURATION = 1000;
-    public static final int PEERS_DURATION = 30000;
+    public static final int SLEEP_DURATION = 100;
+    public static final int PEERS_DURATION = 3000;
 
     public static final boolean MODE_ACTIVE = false;
 
@@ -358,7 +358,6 @@ public class WifiNetworkService implements NetworkService {
 
     public void multicast(int[] ids, NetworkMessage msg) {
         throw new UnsupportedOperationException();
-
     }
 
 /*
@@ -450,7 +449,7 @@ public class WifiNetworkService implements NetworkService {
     * Helpers
      */
     private void advertiseAndDiscoveryLooper() {
-        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper");
+        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper hasPending " + String.valueOf(hasPending));
 
         if (isActive) {
             advertiseAndDiscovery(new WifiP2pManager.ActionListener() {
@@ -458,8 +457,8 @@ public class WifiNetworkService implements NetworkService {
                 public void onSuccess() {
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = rand.nextInt((SLEEP_DURATION - 500) + 1) + 500;
-                    Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper sleep for " + String.valueOf(delay));
+                    int delay = rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                    Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper onSuccess sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
                         @Override
@@ -474,8 +473,8 @@ public class WifiNetworkService implements NetworkService {
                 public void onFailure(int error) {
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = rand.nextInt((2 * SLEEP_DURATION - 500) + 1) + 500;
-                    Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper sleep for " + String.valueOf(delay));
+                    int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                    Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper onFailure error " + String.valueOf(error) + " sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
                         @Override
@@ -492,7 +491,7 @@ public class WifiNetworkService implements NetworkService {
 
 
     private void advertiseAndDiscovery(final WifiP2pManager.ActionListener listener) {
-        Log.v("WifiNetworkService", "advertiseAndDiscovery");
+        Log.v("WifiNetworkService", "advertiseAndDiscovery hasPending " + String.valueOf(hasPending));
         if (!hasPending) {
             hasPending = true;
 
@@ -501,12 +500,15 @@ public class WifiNetworkService implements NetworkService {
                 @Override
                 public void onSuccess() {
 
+                    Log.v("WifiNetworkService", "advertiseAndDiscovery onSuccess");
 
                     //call discovery after advertise stop
                     mDiscovery.discovery(DISCOVERY_DURATION, new WifiP2pManager.ActionListener() {
                         @Override
                         public void onSuccess() {
                             hasPending = false;
+
+                            Log.v("WifiNetworkService", "advertiseAndDiscovery discovery onSuccess");
 
                             //callback
                             listener.onSuccess();
@@ -515,6 +517,7 @@ public class WifiNetworkService implements NetworkService {
                         @Override
                         public void onFailure(int error) {
                             hasPending = false;
+                            Log.v("WifiNetworkService", "advertiseAndDiscovery discovery onFailure error " + String.valueOf(error));
                         }
                     });
 
@@ -523,6 +526,7 @@ public class WifiNetworkService implements NetworkService {
                 @Override
                 public void onFailure(int error) {
                     hasPending = false;
+                    Log.v("WifiNetworkService", "advertiseAndDiscovery onFailure error " + String.valueOf(error));
                 }
             });
         } else {
@@ -555,8 +559,8 @@ public class WifiNetworkService implements NetworkService {
                 public void onSuccess() {
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = rand.nextInt((SLEEP_DURATION - 500) + 1) + 500;
-                    Log.v("WifiNetworkService", "discoveryLooper sleep for " + String.valueOf(delay));
+                    int delay = rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                    Log.v("WifiNetworkService", "discoveryLooper onSuccess sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
                         @Override
@@ -571,8 +575,8 @@ public class WifiNetworkService implements NetworkService {
                 public void onFailure(int error) {
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = rand.nextInt((2 * SLEEP_DURATION - 500) + 1) + 500;
-                    Log.v("WifiNetworkService", "discoveryLooper sleep for " + String.valueOf(delay));
+                    int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                    Log.v("WifiNetworkService", "discoveryLooper onFailure error " + String.valueOf(error) + " sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
                         @Override

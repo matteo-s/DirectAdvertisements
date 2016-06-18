@@ -39,6 +39,7 @@ import it.unitn.android.directadvertisements.network.simulator.SimulatorService;
 import it.unitn.android.directadvertisements.network.simulator.SimulatorServiceUtil;
 import it.unitn.android.directadvertisements.network.wifi.WifiNetworkService;
 import it.unitn.android.directadvertisements.registry.NetworkRegistry;
+import it.unitn.android.directadvertisements.registry.NetworkRegistryUtil;
 
 public class MainService extends Service {
 
@@ -58,7 +59,7 @@ public class MainService extends Service {
     //    private Map<String, NetworkNode> mNodes;
     private NetworkNode mNode;
     private String mAddress = "00:00:00:00:00";
-
+    private int mId = 0;
 
     /*
     * Clock
@@ -242,7 +243,7 @@ public class MainService extends Service {
                     break;
                 case MessageKeys.CLOCK_INQUIRY:
                     final String ai = (String) bundle.getSerializable("a");
-                    Log.v("MainService msg", "clock inquery for " + ai);
+                    Log.v("MainService msg", "clock inquiry for " + ai);
                     //inquiry
                     clockInquiry(ai);
                     break;
@@ -401,18 +402,18 @@ public class MainService extends Service {
         //build advertisement
         if (mClockService != null && mNetworkService != null && mNode != null) {
             NetworkMessage n = new NetworkMessage();
-            n.sender = mNode.address;
+            n.sender = mNode.id;
             n.clock = mClockService.get();
 
             //build clocks
             n.clocks = new HashMap<>();
             n.addresses = new HashMap<>();
 
-            for (String a : mNodes.keySet()) {
-                short c = mNodes.get(a).clock;
-                byte i = mNodes.get(a).id;
-                n.clocks.put(a, c);
-                n.addresses.put(a, i);
+            //get nodes
+            List<NetworkNode> nodes = mNetworkRegistry.getNodes();
+            for (NetworkNode node : nodes) {
+                n.clocks.put(node.id, node.clock);
+                n.addresses.put(node.id, node.address);
             }
 
 
@@ -434,48 +435,61 @@ public class MainService extends Service {
         int local = mClockService.get();
         boolean updated = false;
 
-        if (!msg.sender.equals(mAddress) && msg.clock >= local) {
-            Log.v("MainService", "clockUpdate exec");
+        if (msg.sender != mId) {
+            Log.v("MainService", "clockUpdate exec from " + String.valueOf(msg.sender) + " clock " + String.valueOf(msg.clock));
 
-            //update sender over map
-            if (!mNodes.containsKey(msg.sender)) {
-                NetworkNode node = new NetworkNode(NetworkServiceUtil.nextIdentifier());
-                node.address = msg.sender;
-                node.clock = msg.clock;
+            //check if sender info is present
+            if(msg.sender > 0) {
+                //update sender over stored value
+                if (mNetworkRegistry.hasNode(msg.sender)) {
+                    //overwrite because msg comes from device itself
+                    NetworkNode node = mNetworkRegistry.getNode(msg.sender);
 
-                mNodes.put(msg.sender, node);
-                updated = true;
-            } else {
-                //overwrite because msg comes from device itself
-                if (mNodes.get(msg.sender).clock != msg.clock) {
-                    mNodes.get(msg.sender).clock = msg.clock;
+                    if (node.clock != msg.clock) {
+                        node.clock = msg.clock;
+                        mNetworkRegistry.updateNode(node);
+
+                        updated = true;
+                    }
+                } else {
+                    //add as new
+                    NetworkNode node = new NetworkNode(msg.sender);
+                    node.address = msg.address;
+                    node.clock = msg.clock;
+
+                    mNetworkRegistry.addNode(node);
                     updated = true;
                 }
             }
 
-
-            Iterator<String> iter = msg.clocks.keySet().iterator();
+            //check for vector clock
+            Iterator<Integer> iter = msg.clocks.keySet().iterator();
             while (iter.hasNext()) {
-                String a = iter.next();
+                int i = iter.next();
                 //skip ourselves
-                if (!a.equals(mAddress)) {
-                    short c = msg.clocks.get(a);
+                if (i != mId) {
+                    short c = msg.clocks.get(i);
 
                     //update if needed
-                    if (mNodes.containsKey(a)) {
-                        NetworkNode node = mNodes.get(a);
+                    if (mNetworkRegistry.hasNode(i)) {
+                        NetworkNode node = mNetworkRegistry.getNode(i);
 
                         if (node.clock < c) {
                             node.clock = c;
+                            mNetworkRegistry.updateNode(node);
+
                             updated = true;
                         }
                     } else {
-                        NetworkNode node = new NetworkNode(NetworkServiceUtil.nextIdentifier());
-                        node.address = a;
-                        node.clock = c;
+                        //add as new
+                        NetworkNode node = new NetworkNode(i);
+                        node.clock = msg.clocks.get(i);
+                        //check if address is available - depends on service
+                        if (msg.addresses.containsKey(i)) {
+                            node.address = msg.addresses.get(i);
+                        }
 
-
-                        mNodes.put(a, node);
+                        mNetworkRegistry.addNode(node);
                         updated = true;
                     }
                 }
@@ -500,7 +514,7 @@ public class MainService extends Service {
                         Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
                         intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
 
-                        ArrayList<NetworkNode> nodes = new ArrayList(mNodes.values());
+                        ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
                         Log.v("MainService", "clockUpdate notify nodes " + String.valueOf(nodes.size()));
 
 //                        Bundle bundle = new Bundle();
@@ -533,10 +547,11 @@ public class MainService extends Service {
         mNode = new NetworkNode(i);
 
         //nodes
-        if (mNodes == null) {
-            mNodes = new HashMap<>();
+        if (mNetworkRegistry == null) {
+            mNetworkRegistry = NetworkRegistryUtil.getRegistry();
         } else {
             //flush ?
+            mNetworkRegistry.clear();
         }
 
 

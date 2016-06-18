@@ -12,6 +12,7 @@ public class NetworkMessage implements Serializable {
     //local node info
     public int sender;
     public short clock;
+    public String address;
 
     //maps device id - clock
     public Map<Integer, Short> clocks;

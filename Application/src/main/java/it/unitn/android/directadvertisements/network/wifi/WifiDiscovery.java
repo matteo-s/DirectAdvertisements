@@ -22,6 +22,8 @@ import java.util.Map;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
+import it.unitn.android.directadvertisements.network.NetworkNode;
+import it.unitn.android.directadvertisements.registry.NetworkRegistryUtil;
 
 public class WifiDiscovery {
     private WifiP2pManager mManager;
@@ -71,12 +73,20 @@ public class WifiDiscovery {
 //                String sender = record.get("s");
 //                int c = Integer.parseInt(record.get("c"));
 
-                Log.v("WifiDiscovery", "receive data from " + device.deviceAddress + " data " + record.keySet().toString() + ": " + record.values().toString());
+                String address = device.deviceAddress;
+                Log.v("WifiDiscovery", "receive data from " + address + " data " + record.keySet().toString() + ": " + record.values().toString());
+
 
                 //create message
                 NetworkMessage n = new NetworkMessage();
-                n.sender = device.deviceAddress;
-                n.clock = Short.parseShort(record.get("0"));
+                n.address = address;
+                n.sender = Integer.parseInt(record.get("s"));
+                n.clock = Short.parseShort(record.get("c"));
+//                //lookup address -> id
+//                if (NetworkRegistryUtil.getRegistry().hasNode(address)) {
+//                    NetworkNode s = NetworkRegistryUtil.getRegistry().getNode(address);
+//                    n.sender = s.id;
+//                }
 
                 //build clocks from data
                 //TODO

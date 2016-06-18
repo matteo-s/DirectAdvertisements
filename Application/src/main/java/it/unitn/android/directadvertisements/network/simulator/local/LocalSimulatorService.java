@@ -15,6 +15,7 @@ import java.util.Random;
 
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.simulator.SimulatorService;
+import it.unitn.android.directadvertisements.registry.NetworkRegistryUtil;
 
 public class LocalSimulatorService implements SimulatorService {
 
@@ -25,11 +26,15 @@ public class LocalSimulatorService implements SimulatorService {
     public LocalSimulatorService(Context context, IBinder binder) {
         mNodes = new ArrayList<>();
 
+        //use id from registry as base
+        int c = NetworkRegistryUtil.getRegistry().countNodes();
+
         for (int i = 0; i < SIZE; i++) {
             //generate a random node address
             String address = generateRandomAddress();
 
-            LocalSimulatorNode node = new LocalSimulatorNode(address, context, binder);
+            c = c + i;
+            LocalSimulatorNode node = new LocalSimulatorNode(c, address, context, binder);
 
 //            Intent intent = new Intent(context, LocalSimulatorNode.class);
 //            // Start the service

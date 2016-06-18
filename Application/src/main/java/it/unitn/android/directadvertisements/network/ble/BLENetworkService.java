@@ -12,6 +12,7 @@ import android.os.ParcelUuid;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
+import it.unitn.android.directadvertisements.registry.NetworkRegistryUtil;
 
 public class BLENetworkService implements NetworkService {
 
@@ -141,17 +142,40 @@ public class BLENetworkService implements NetworkService {
 
     @Override
     public void send(String address, NetworkMessage msg) {
+        throw new UnsupportedOperationException();
+    }
 
+    @Override
+    public void send(int id, NetworkMessage msg) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void broadcast(NetworkMessage msg) {
+        throw new UnsupportedOperationException();
+    }
 
+    @Override
+    public void multicast(String[] addresses, NetworkMessage msg) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void multicast(int[] ids, NetworkMessage msg) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void inquiry(String address) {
+        throw new UnsupportedOperationException();
+    }
 
+    @Override
+    public void inquiry(int id) {
+        NetworkNode node = NetworkRegistryUtil.getRegistry().getNode(id);
+        if (node != null) {
+            inquiry(node.address);
+        }
     }
 
     @Override

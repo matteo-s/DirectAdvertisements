@@ -4,6 +4,7 @@
 
 package it.unitn.android.directadvertisements.registry;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import it.unitn.android.directadvertisements.network.NetworkNode;
@@ -13,7 +14,7 @@ public interface NetworkRegistry {
     public void clear();
 
     public int countNodes();
-    public List<NetworkNode> getNodes();
+    public ArrayList<NetworkNode> getNodes();
 
 
     public boolean hasNode(String address);

@@ -53,8 +53,7 @@
             android:inputType="number"
             android:ems="10"
             android:id="@+id/input_id"
-            android:layout_gravity="right|top"
-            android:text="0" />
+            android:layout_gravity="right|top" />
 
         <TextView
             android:layout_width="wrap_content"

@@ -35,7 +35,7 @@ public class LocalNetworkRegistry implements NetworkRegistry {
     }
 
     @Override
-    public List<NetworkNode> getNodes() {
+    public ArrayList<NetworkNode> getNodes() {
         return new ArrayList(nodes.values());
     }
 

@@ -32,8 +32,9 @@ import it.unitn.android.directadvertisements.network.simulator.SimulatorService;
 
 public class LocalSimulatorNode extends Service {
     //    private Map<String, Integer> mClocks;
-    private Map<String, NetworkNode> mNodes;
+    private Map<Integer, NetworkNode> mNodes;
     private final String mAddress;
+    private final int mId;
     private byte counter = 0;
 
     private Messenger bMessenger;
@@ -48,24 +49,26 @@ public class LocalSimulatorNode extends Service {
     private Messenger mMessenger;
 
     public LocalSimulatorNode() {
+        this.mId = 0;
         this.mAddress = "";
         this.mNodes = new HashMap<>();
     }
 
 
-    public LocalSimulatorNode(String address, Context context, IBinder binder) {
-        Log.v("LocalSimulatorNode", "create address " + address);
+    public LocalSimulatorNode(int id, String address, Context context, IBinder binder) {
+        Log.v("LocalSimulatorNode", "create id " + String.valueOf(id) + " address " + address);
 
+        this.mId = id;
         this.mAddress = address;
         this.mNodes = new HashMap<>();
 
         //bind
         this.bMessenger = new Messenger(binder);
 
-        String id = "LocalSimulatorNode." + mAddress + ".HandlerThread";
-        Log.v("LocalSimulatorNode", "onCreate " + id);
+        String tid = "LocalSimulatorNode." + mAddress + ".HandlerThread";
+        Log.v("LocalSimulatorNode", "onCreate " + tid);
 
-        mHandlerThread = new HandlerThread(id);
+        mHandlerThread = new HandlerThread(tid);
         mHandlerThread.start();
         // An Android service handler is a handler running on a specific background thread.
         mServiceHandler = new ServiceHandler(mHandlerThread.getLooper());
@@ -138,18 +141,17 @@ public class LocalSimulatorNode extends Service {
 
             //send update to mainService
             NetworkMessage n = new NetworkMessage();
-            n.sender = mAddress;
+            n.sender = mId;
+            n.address = mAddress;
             n.clock = mClockService.get();
 
             //build clocks
             n.clocks = new HashMap<>();
             n.addresses = new HashMap<>();
 
-            for (String a : mNodes.keySet()) {
-                short c = mNodes.get(a).clock;
-                byte i = mNodes.get(a).id;
-                n.clocks.put(a, c);
-                n.addresses.put(a, i);
+            for (Integer i : mNodes.keySet()) {
+                n.clocks.put(i, mNodes.get(i).clock);
+                n.addresses.put(i, mNodes.get(i).address);
             }
 
             //directly send to service
@@ -175,11 +177,11 @@ public class LocalSimulatorNode extends Service {
 
             //check sender and clock
             int local = mClockService.get();
-            if (!msg.sender.equals(mAddress) && msg.clock >= local) {
+            if (msg.sender != mId && msg.clock >= local) {
                 //update sender over map
                 if (!mNodes.containsKey(msg.sender)) {
-                    NetworkNode node = new NetworkNode(nextIdentifier());
-                    node.address = msg.sender;
+                    NetworkNode node = new NetworkNode(msg.sender);
+                    node.address = msg.address;
                     node.clock = msg.clock;
 
                     mNodes.put(msg.sender, node);
@@ -191,27 +193,27 @@ public class LocalSimulatorNode extends Service {
                 }
 
 
-                Iterator<String> iter = msg.clocks.keySet().iterator();
+                Iterator<Integer> iter = msg.clocks.keySet().iterator();
                 while (iter.hasNext()) {
-                    String a = iter.next();
+                    int i = iter.next();
                     //skip ourselves
-                    if (!a.equals(mAddress)) {
-                        short c = msg.clocks.get(a);
+                    if (i != mId) {
+                        short c = msg.clocks.get(i);
 
                         //update if needed
-                        if (mNodes.containsKey(a)) {
-                            NetworkNode node = mNodes.get(a);
+                        if (mNodes.containsKey(i)) {
+                            NetworkNode node = mNodes.get(i);
 
                             if (node.clock < c) {
                                 node.clock = c;
                             }
                         } else {
-                            NetworkNode node = new NetworkNode(nextIdentifier());
-                            node.address = a;
+                            NetworkNode node = new NetworkNode(i);
+                            node.address = msg.addresses.get(i);
                             node.clock = c;
 
 
-                            mNodes.put(a, node);
+                            mNodes.put(i, node);
                         }
                     }
                 }

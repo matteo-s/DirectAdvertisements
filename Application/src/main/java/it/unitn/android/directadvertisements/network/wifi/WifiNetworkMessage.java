@@ -4,7 +4,6 @@
 
 package it.unitn.android.directadvertisements.network.wifi;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -13,6 +12,8 @@ import it.unitn.android.directadvertisements.network.NetworkMessage;
 public class WifiNetworkMessage extends NetworkMessage {
 
 
+    public static final int SLOTS = 10;
+
     /*
     * Helpers
      */
@@ -20,20 +21,29 @@ public class WifiNetworkMessage extends NetworkMessage {
     public Map<String, String> getRecord() {
         //build data - 200bytes max
         Map<String, String> data = new LinkedHashMap<String, String>();
-//        data.put("s", sender);
-        data.put("0", Short.toString(clock));
+        data.put("s", Integer.toString(sender));
+        data.put("c", Short.toString(clock));
 
-        //add all nodes - max
-//        for (String a : clocks.keySet()) {
-//            if (addresses.containsKey(a)) {
-//                byte i = addresses.get(a);
-//                short c = clocks.get(a);
-//
-//                //add as id - clock
-//                data.put(Short.toString(i), Short.toString(c));
-//
-//            }
-//        }
+        //add all nodes as vector via stringBuilder
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < SLOTS; i++) {
+            short c = 0;
+            if (clocks.containsKey(i)) {
+                c = clocks.get(i);
+            }
+            //add sender
+            if (i == sender) {
+                c = clock;
+            }
+
+            //char 16bit = short
+            //char is unsigned, short is signed but clock is >0
+//            sb.append((char) c);
+            sb.append(String.valueOf(c));
+        }
+
+        data.put("v", sb.toString());
 
         return data;
     }
@@ -48,6 +58,7 @@ public class WifiNetworkMessage extends NetworkMessage {
         //clone data
         m.sender = msg.sender;
         m.clock = msg.clock;
+
         m.clocks = msg.clocks;
         m.addresses = msg.addresses;
 
