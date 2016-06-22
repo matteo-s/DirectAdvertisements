@@ -7,6 +7,7 @@ package it.unitn.android.directadvertisements.network;
 import android.content.Context;
 import android.os.IBinder;
 
+import it.unitn.android.directadvertisements.network.ble.BLENetworkService;
 import it.unitn.android.directadvertisements.network.wifi.WifiNetworkService;
 
 public class NetworkServiceUtil {
@@ -31,6 +32,9 @@ public class NetworkServiceUtil {
             switch (network) {
                 case NetworkService.SERVICE_WIFI:
                     _service = new WifiNetworkService(context, binder);
+                    break;
+                case NetworkService.SERVICE_BLE:
+                    _service = new BLENetworkService(context, binder);
                     break;
             }
 

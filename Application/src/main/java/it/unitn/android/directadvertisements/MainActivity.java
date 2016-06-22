@@ -134,17 +134,23 @@ public class MainActivity extends FragmentActivity {
             }
         });
 
-        Switch toggleService = (Switch) findViewById(R.id.switch_service);
+        final Switch toggleService = (Switch) findViewById(R.id.switch_service);
         toggleService.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
                     //fetch custom device id
                     String deviceId = input_id.getText().toString();
 
-                    startMainService(deviceId);
+                    if (!deviceId.isEmpty()) {
+                        //lock network toggle
+                        toggleNetwork.setEnabled(false);
 
-                    //lock network toggle
-                    toggleNetwork.setEnabled(false);
+                        startMainService(deviceId);
+                    } else {
+                        //ignore and unlock
+                        toggleService.setChecked(false);
+                    }
+
                 } else {
                     // The toggle is disabled
                     stopMainService();

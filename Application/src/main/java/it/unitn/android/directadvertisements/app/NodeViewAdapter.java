@@ -40,6 +40,7 @@ public class NodeViewAdapter extends ArrayAdapter<NetworkNode> {
 
             // initialize the view holder
             viewHolder = new ViewHolder();
+            viewHolder.nId = (TextView) convertView.findViewById(R.id.node_id);
             viewHolder.nName = (TextView) convertView.findViewById(R.id.node_name);
             viewHolder.nAddress = (TextView) convertView.findViewById(R.id.node_address);
             viewHolder.nClock = (TextView) convertView.findViewById(R.id.node_clock);
@@ -50,6 +51,7 @@ public class NodeViewAdapter extends ArrayAdapter<NetworkNode> {
         }
 
         // update the item view
+        viewHolder.nId.setText('#'+String.valueOf(item.id));
         viewHolder.nName.setText(item.name);
         viewHolder.nAddress.setText(item.address);
         viewHolder.nClock.setText(String.valueOf(item.clock));
@@ -64,6 +66,7 @@ public class NodeViewAdapter extends ArrayAdapter<NetworkNode> {
      * @see http://developer.android.com/training/improving-layouts/smooth-scrolling.html#ViewHolder
      */
     private static class ViewHolder {
+        TextView nId;
         TextView nName;
         TextView nAddress;
         TextView nClock;

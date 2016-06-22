@@ -266,37 +266,7 @@ public class MainService extends Service {
                     break;
                 case MessageKeys.NETWORK_INFO:
                     Log.v("MainService msg", "network info callback");
-
-                    //fetch node from service
-                    if (mNetworkService != null) {
-                        NetworkNode nInfo = mNetworkService.info();
-
-                        if (nInfo != null) {
-                            //overwrite current stored info
-                            mNode.address = nInfo.address;
-                            mNode.name = nInfo.name;
-
-                            Log.v("MainService msg", "network address " + mNode.address);
-                            Log.v("MainService msg", "network name " + mNode.name);
-
-                            mAddress = mNode.address;
-
-                            //notify activity
-                            mServiceHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    // Send broadcast out with action filter and extras
-                                    Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
-                                    intent.putExtra(MessageKeys.TYPE, MessageKeys.NETWORK_INFO);
-                                    intent.putExtra("name", mNode.name);
-                                    intent.putExtra("address", mNode.address);
-                                    mLocalBroadcastManager.sendBroadcast(intent);
-                                }
-                            });
-                        }
-                    }
-
-
+                    networkInfo();
                     break;
                 case MessageKeys.NOTIFY_MESSAGE:
                     //send broadcast
@@ -323,6 +293,57 @@ public class MainService extends Service {
     /*
     * actions
      */
+    private void networkInfo() {
+        //fetch node from service
+        if (mNetworkService != null) {
+            NetworkNode nInfo = mNetworkService.info();
+
+            if (nInfo != null) {
+
+                //overwrite current stored info
+                mNode.address = nInfo.address;
+                mNode.name = nInfo.name;
+
+                Log.v("MainService msg", "network address " + mNode.address);
+                Log.v("MainService msg", "network name " + mNode.name);
+
+                mAddress = mNode.address;
+
+                //update ourselves in registry
+                mNode.clock = mClockService.get();
+                mNetworkRegistry.updateNode(mNode);
+
+                //notify activity
+                mServiceHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Send broadcast out with action filter and extras
+                        Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+                        intent.putExtra(MessageKeys.TYPE, MessageKeys.NETWORK_INFO);
+                        intent.putExtra("name", mNode.name);
+                        intent.putExtra("address", mNode.address);
+                        mLocalBroadcastManager.sendBroadcast(intent);
+                    }
+                });
+
+
+                //notify activity
+                mServiceHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Send broadcast out with action filter and extras
+                        Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+                        intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
+
+                        ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+                        intent.putExtra("nodes", nodes);
+                        mLocalBroadcastManager.sendBroadcast(intent);
+                    }
+                });
+            }
+        }
+    }
+
     private void clockIncrement() {
         mClockService = ClockServiceUtil.getService(this, mMessenger.getBinder());
         //read clock as integer
@@ -333,6 +354,10 @@ public class MainService extends Service {
         clockBroadcast();
 
 
+        //update ourselves in registry
+        mNode.clock = c;
+        mNetworkRegistry.updateNode(mNode);
+
         //notify
         mServiceHandler.post(new Runnable() {
             @Override
@@ -341,6 +366,20 @@ public class MainService extends Service {
                 Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
                 intent.putExtra(MessageKeys.TYPE, MessageKeys.CLOCK_INCREMENT);
                 intent.putExtra("c", c);
+                mLocalBroadcastManager.sendBroadcast(intent);
+            }
+        });
+
+        //notify activity
+        mServiceHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                // Send broadcast out with action filter and extras
+                Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+                intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
+
+                ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+                intent.putExtra("nodes", nodes);
                 mLocalBroadcastManager.sendBroadcast(intent);
             }
         });
@@ -439,7 +478,7 @@ public class MainService extends Service {
             Log.v("MainService", "clockUpdate exec from " + String.valueOf(msg.sender) + " clock " + String.valueOf(msg.clock));
 
             //check if sender info is present
-            if(msg.sender > 0) {
+            if (msg.sender > 0) {
                 //update sender over stored value
                 if (mNetworkRegistry.hasNode(msg.sender)) {
                     //overwrite because msg comes from device itself
@@ -541,9 +580,16 @@ public class MainService extends Service {
     * handle services, can be called multiple times
      */
     protected void start(String network, String deviceId) {
-        Log.v("MainService", "MainService start, network " + network);
         //local node
-        byte i = Byte.parseByte(deviceId);
+        int i = 0;
+        try {
+            i = Integer.parseInt(deviceId);
+        } catch (Exception ex) {
+            //reset
+            i = 0;
+        }
+        Log.v("MainService", "MainService start node " + String.valueOf(i) + ", network " + network);
+
         mNode = new NetworkNode(i);
 
         //nodes
@@ -554,6 +600,8 @@ public class MainService extends Service {
             mNetworkRegistry.clear();
         }
 
+        //add to registry
+        mNetworkRegistry.addNode(mNode);
 
         //clock
         mClockService = ClockServiceUtil.getService(this, mMessenger.getBinder());

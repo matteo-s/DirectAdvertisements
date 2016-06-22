@@ -66,41 +66,44 @@ public class WifiNetworkService implements NetworkService {
     public static final String SERVICE_REG_TYPE = "_presence._tcp";
     public static final int SERVICE_PORT = 5001;
 
-    public static final int ADVERTISE_DURATION = 1000;
-    public static final int DISCOVERY_DURATION = 9000;
+    public static final int ADVERTISE_DURATION = 6000;
+    public static final int DISCOVERY_DURATION = 1000;
     public static final int SLEEP_DURATION = 100;
-    public static final int PEERS_DURATION = 3000;
+    public static final int PEERS_DURATION = 1000;
 
     public static final boolean MODE_ACTIVE = false;
+    public static final boolean MODE_ADAPTIVE = true;
+    public static final int ADAPTIVE_STEP = 1000;
+    public int ADAPTIVE_DURATION;
 
     /*
     * Context
      */
     private Context mContext;
-
+    private Messenger mMessenger;
+    private Handler mHandler;
 
     /*
     * WIFI
      */
     private WifiP2pManager mManager;
     private Channel mChannel;
-    private Messenger mMessenger;
-    private Handler mHandler;
+
+    private WifiReceiver mReceiver;
+    private WifiAdvertiser mAdvertiser;
+    private WifiDiscovery mDiscovery;
+
+    private WifiServer mServer;
+    private WifiClient mClient;
+
+    private WifiNetworkMessage mMessage;
+
 
     boolean isBound = false;
     boolean isActive = false;
     boolean hasPending = false;
     boolean hasConnection = false;
 
-    private WifiReceiver mReceiver;
-    private WifiAdvertiser mAdvertiser;
-    private WifiDiscovery mDiscovery;
-
-    private NetworkNode mNode;
-    private WifiServer mServer;
-    private WifiClient mClient;
-
-    private WifiNetworkMessage mMessage;
 
     public WifiNetworkService(Context context, IBinder binder) {
         this.mManager = null;
@@ -108,8 +111,6 @@ public class WifiNetworkService implements NetworkService {
         this.mReceiver = null;
         this.mAdvertiser = null;
         this.mDiscovery = null;
-
-        this.mNode = null;
 
         this.mMessage = null;
 
@@ -158,6 +159,8 @@ public class WifiNetworkService implements NetworkService {
 
     @Override
     public void destroy() {
+        deactivate();
+
         // unbind or process might have crashes
         mMessenger = null;
         isBound = false;
@@ -245,16 +248,16 @@ public class WifiNetworkService implements NetworkService {
             discoveryLooper();
 
         } else {
-            //start discovery
-            discovery(new WifiP2pManager.ActionListener() {
-                @Override
-                public void onSuccess() {
-                }
-
-                @Override
-                public void onFailure(int error) {
-                }
-            });
+            //start discovery - DISABLED
+//            discovery(new WifiP2pManager.ActionListener() {
+//                @Override
+//                public void onSuccess() {
+//                }
+//
+//                @Override
+//                public void onFailure(int error) {
+//                }
+//            });
 //        mDiscovery.discovery();
 //        mDiscovery.startDelay(2*ADVERTISE_DURATION);
         }
@@ -336,6 +339,10 @@ public class WifiNetworkService implements NetworkService {
         //replace message
         mMessage = WifiNetworkMessage.parse(msg);
 
+        if (MODE_ADAPTIVE) {
+            //reset adaptive
+            ADAPTIVE_DURATION = ADVERTISE_DURATION;
+        }
 
         if (!isActive) {
             //start broadcasting indefinitely
@@ -496,7 +503,14 @@ public class WifiNetworkService implements NetworkService {
             hasPending = true;
 
             //start advertiser
-            mAdvertiser.advertise(mMessage, ADVERTISE_DURATION, new WifiP2pManager.ActionListener() {
+
+            int duration = ADVERTISE_DURATION;
+            if (MODE_ADAPTIVE) {
+                duration = ADAPTIVE_DURATION;
+            }
+
+
+            mAdvertiser.advertise(mMessage, duration, new WifiP2pManager.ActionListener() {
                 @Override
                 public void onSuccess() {
 
@@ -520,6 +534,11 @@ public class WifiNetworkService implements NetworkService {
                             Log.v("WifiNetworkService", "advertiseAndDiscovery discovery onFailure error " + String.valueOf(error));
                         }
                     });
+
+                    if(MODE_ADAPTIVE) {
+                        //decrement duration
+                        ADAPTIVE_DURATION = Math.max(ADAPTIVE_STEP, ADAPTIVE_DURATION - ADAPTIVE_STEP);
+                    }
 
                 }
 
@@ -617,6 +636,9 @@ public class WifiNetworkService implements NetworkService {
         }
     }
 
+    /*
+    * Helper - message
+     */
 
     protected void sendMessage(int key, Bundle bundle) {
         if (isBound) {

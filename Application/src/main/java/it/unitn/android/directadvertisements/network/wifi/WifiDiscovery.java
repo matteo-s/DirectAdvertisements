@@ -74,24 +74,25 @@ public class WifiDiscovery {
 //                int c = Integer.parseInt(record.get("c"));
 
                 String address = device.deviceAddress;
-                Log.v("WifiDiscovery", "receive data from " + address + " data " + record.keySet().toString() + ": " + record.values().toString());
 
+                StringBuilder vector = new StringBuilder();
+                String value = record.get("v");
+                for (int i = 0; i < value.length(); i++) {
+                    short s = (short) value.charAt(i);
+                    vector.append(Short.toString(s));
+                }
 
-                //create message
-                NetworkMessage n = new NetworkMessage();
+                Log.v("WifiDiscovery", "receive data from " + address + " data "
+                                + record.keySet().toString() + ": "
+                                + record.get("s")
+                                + vector.toString()
+                );
+
+                //get message
+                WifiNetworkMessage n = WifiNetworkMessage.parse(record);
+
+                //set sender address
                 n.address = address;
-                n.sender = Integer.parseInt(record.get("s"));
-                n.clock = Short.parseShort(record.get("c"));
-//                //lookup address -> id
-//                if (NetworkRegistryUtil.getRegistry().hasNode(address)) {
-//                    NetworkNode s = NetworkRegistryUtil.getRegistry().getNode(address);
-//                    n.sender = s.id;
-//                }
-
-                //build clocks from data
-                //TODO
-                n.clocks = new HashMap<>();
-                n.addresses = new HashMap<>();
 
                 //directly send to service
                 Message msg = Message.obtain(null, MessageKeys.CLOCK_RECEIVE, 0, 0);

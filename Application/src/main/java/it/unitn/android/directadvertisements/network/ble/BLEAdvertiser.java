@@ -4,37 +4,155 @@
 
 package it.unitn.android.directadvertisements.network.ble;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.le.AdvertiseCallback;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertiseSettings;
+import android.bluetooth.le.BluetoothLeAdvertiser;
+import android.net.wifi.p2p.WifiP2pManager;
+import android.os.Handler;
+import android.os.Messenger;
+import android.util.Log;
+import android.util.SparseArray;
 
 
 public class BLEAdvertiser {
 
-    /**
-     * Returns an AdvertiseData object which includes the Service UUID and Device Name.
-     */
-    public AdvertiseData buildAdvertiseData(String data) {
 
-        /**
-         * Note: There is a strict limit of 31 Bytes on packets sent over BLE Advertisements.
-         *  This includes everything put into AdvertiseData including UUIDs, device info, &
-         *  arbitrary service or manufacturer data.
-         *  Attempting to send packets over this limit will result in a failure with error code
-         *  AdvertiseCallback.ADVERTISE_FAILED_DATA_TOO_LARGE. Catch this error in the
-         *  onStartFailure() method of an AdvertiseCallback implementation.
-         */
+    private BluetoothAdapter mAdapter;
+    private BluetoothLeAdvertiser mAdvertiser;
+    private AdvertiseSettings mSettings;
+    private AdvertiseCallback mCallback;
 
-        AdvertiseData.Builder dataBuilder = new AdvertiseData.Builder();
-        dataBuilder.addServiceUuid(BLENetworkService.Service_UUID);
-        dataBuilder.setIncludeDeviceName(true);
+    private Messenger mMessenger;
 
-        /* For example - this will cause advertising to fail (exceeds size limit) */
-        //String failureData = "asdghkajsghalkxcjhfa;sghtalksjcfhalskfjhasldkjfhdskf";
-        //dataBuilder.addServiceData(Constants.Service_UUID, failureData.getBytes());
+    private boolean isActive = false;
+    private Handler mHandler;
 
-        dataBuilder.addServiceData(BLENetworkService.Service_UUID, data.getBytes());
-        return dataBuilder.build();
+
+    public BLEAdvertiser(BluetoothAdapter adapter, Messenger messenger) {
+        mAdapter = adapter;
+        mMessenger = messenger;
+
+        //create an handler for delayed tasks
+        mHandler = new Handler();
+
+        //get advertiser
+        mAdvertiser = mAdapter.getBluetoothLeAdvertiser();
+
+        mSettings = buildAdvertiseSettings();
+
+        mCallback = new BLECallback(new ActionListener() {
+            @Override
+            public void onSuccess() {
+
+            }
+
+            @Override
+            public void onFailure(int var1) {
+
+            }
+        });
+
     }
+
+
+        /*
+    * Advertiser
+    * callback listener will be called after start+duration+stop cycle
+     */
+
+
+    public void advertise(final BLENetworkMessage m, final int duration, final ActionListener listener) {
+        Log.v("BLEAdvertiser", "advertise for " + String.valueOf(duration));
+
+        if (isActive) {
+            //call stop with callback
+            stop(new ActionListener() {
+
+                @Override
+                public void onSuccess() {
+                    //call advertise now
+                    advertise(m, duration, listener);
+                }
+
+                @Override
+                public void onFailure(int error) {
+                    //call listener
+                    if (listener != null) {
+                        listener.onFailure(error);
+                    }
+                }
+            });
+        } else {
+
+            final AdvertiseData advertiseData = m.buildAdvertiseData();
+
+            byte[] bytes = advertiseData.getServiceData().get(BLENetworkService.Service_UUID);
+
+            //add txt visibility key
+            Log.v("BLEAdvertiser", "advertise data length " + String.valueOf(bytes.length) + ": " + BLENetworkMessage.byteArrayToString(bytes));
+            SparseArray<byte[]> manufacturer = advertiseData.getManufacturerSpecificData();
+
+            for (int q = 0; q < manufacturer.size(); q++) {
+                byte[] mata = manufacturer.get(q);
+                Log.v("BLEAdvertiser", "manufacturer data length " + String.valueOf(mata.length) + ": " + BLENetworkMessage.byteArrayToString(mata));
+
+            }
+
+            //start
+            start(advertiseData, mSettings, new ActionListener() {
+
+                @Override
+                public void onSuccess() {
+                    isActive = true;
+                    Log.v("BLEAdvertiser", "started advertiser");
+
+                    //use handler for stopping after duration - 1 shot
+                    mHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.v("BLEAdvertiser", "advertiser expired");
+                            stop(listener);
+                        }
+                    }, duration);
+
+                }
+
+                @Override
+                public void onFailure(int error) {
+                    isActive = false;
+
+                    Log.v("BLEAdvertiser", "fail advertise");
+                    //call listener
+                    if (listener != null) {
+                        listener.onFailure(error);
+                    }
+                }
+            });
+        }
+    }
+
+    public void start(AdvertiseData data, AdvertiseSettings settings, final ActionListener listener) {
+        if (isActive) {
+            stop(null);
+        }
+        mCallback = new BLECallback(listener);
+
+        mAdvertiser.startAdvertising(settings, data, mCallback);
+    }
+
+
+    public void stop(final ActionListener listener) {
+
+        mAdvertiser.stopAdvertising(mCallback);
+        isActive = false;
+
+        if (listener != null) {
+            listener.onSuccess();
+        }
+    }
+
 
     /**
      * Returns an AdvertiseSettings object set to use low power (to help preserve battery life)
@@ -43,6 +161,8 @@ public class BLEAdvertiser {
     public AdvertiseSettings buildAdvertiseSettings() {
         AdvertiseSettings.Builder settingsBuilder = new AdvertiseSettings.Builder();
         settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER);
+        settingsBuilder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM);
+        settingsBuilder.setConnectable(false);
         settingsBuilder.setTimeout(0);
         return settingsBuilder.build();
     }

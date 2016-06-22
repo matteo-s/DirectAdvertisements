@@ -13,17 +13,51 @@
   See the License for the specific language governing permissions and
   limitations under the License.
   -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/main_layout"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:columnCount="1"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="0dp"
+    android:paddingBottom="0dp">
+    <GridLayout
+        android:layout_width="fill_parent"
+        android:layout_height="48dp"
+        android:columnCount="3"
+        android:rowCount="1"
+        android:layout_rowWeight="1"
+        android:id="@+id/input_container"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="false">
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:text="Device ID"
+            android:id="@+id/label_id"
+            android:gravity="center"
+            android:layout_columnWeight="1" />
+
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:ems="10"
+            android:id="@+id/input_id"
+            android:layout_gravity="right|top"
+            android:layout_columnWeight="2"
+            android:textColor="@color/colorPrimaryDark" />
+    </GridLayout>
     <FrameLayout
         android:id="@+id/controls_container"
         android:layout_width="match_parent"
-        android:layout_height="121dp"
-        android:layout_gravity="center_horizontal">
+        android:layout_height="32dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_below="@id/input_container"
+        android:layout_alignParentTop="false">
 
         <Switch
             android:id="@+id/switch_service"
@@ -31,7 +65,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="left|center_vertical"
             android:checked="false"
-            android:text="Main Service" />
+            android:text="Service" />
 
         <Switch
             android:id="@+id/switch_network"
@@ -47,72 +81,79 @@
             android:layout_gravity="right|center_vertical"
             android:text="Simulator" />
 
-        <EditText
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:ems="10"
-            android:id="@+id/input_id"
-            android:layout_gravity="right|top" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Device ID"
-            android:id="@+id/label_id"
-            android:layout_gravity="left|top"
-            android:gravity="center_vertical" />
     </FrameLayout>
 
     <FrameLayout
         android:id="@+id/list_container"
         android:layout_width="match_parent"
-        android:layout_height="276dp">
+        android:layout_height="wrap_content"
+        android:background="@color/cardview_light_background"
+        android:layout_below="@id/controls_container"
+        android:layout_alignWithParentIfMissing="false">
 
         <ListView
             android:id="@+id/list_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="center_horizontal|top" />
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal|top"
+            style="@style/CardView.Light"
+            android:divider="@color/colorPrimary"
+            android:background="#fefefe" />
 
     </FrameLayout>
 
-    <FrameLayout
+    <GridLayout
         android:id="@+id/debug_container"
         style="@style/CardView.Dark"
         android:layout_width="match_parent"
-        android:layout_height="82dp">
+        android:layout_height="48dp"
+        android:layout_rowWeight="1"
+        android:columnCount="3"
+        android:rowCount="1"
+        android:layout_alignParentBottom="true">
 
-        <TextView
-            android:id="@+id/debug_name"
+        <LinearLayout
+            android:orientation="vertical"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="left|center_vertical"
-            android:text="device name" />
+            android:layout_height="match_parent"
+            android:layout_columnWeight="1">
 
-        <TextView
-            android:id="@+id/debug_address"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="left|bottom"
-            android:text="device address" />
+            <TextView
+                android:id="@+id/debug_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="left|center_vertical"
+                android:text="device name" />
 
-        <TextView
-            android:id="@+id/debug_clock"
-            android:layout_width="40dp"
-            android:layout_height="36dp"
-            android:layout_gravity="right|center_vertical"
-            android:gravity="center"
-            android:text="-" />
+            <TextView
+                android:id="@+id/debug_address"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="left|bottom"
+                android:text="device address" />
+
+        </LinearLayout>
 
         <Button
             android:id="@+id/button_broadcast"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="broadcast" />
+            android:text="broadcast"
+            android:layout_columnWeight="1" />
 
-    </FrameLayout>
+        <TextView
+            android:id="@+id/debug_clock"
+            android:layout_width="40dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center_vertical"
+            android:gravity="center"
+            android:text="-"
+            android:layout_columnWeight="1" />
+
+    </GridLayout>
+
+
 
     <!--<fragment-->
     <!--android:name="it.unitn.android.directadvertisements.ScannerFragment"-->
@@ -126,4 +167,4 @@
     <!--android:layout_width="match_parent"-->
     <!--android:layout_height="wrap_content" />-->
 
-</LinearLayout>
+</RelativeLayout>

@@ -17,15 +17,30 @@
     android:layout_height="wrap_content">
 
 
-    <LinearLayout
-        android:orientation="horizontal"
+    <GridLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="wrap_content"
+        android:rowCount="1"
+        android:columnCount="4"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:id="@+id/node_id"
+            android:layout_columnWeight="1"
+            android:gravity="center"
+            android:textAlignment="gravity"
+            android:textStyle="bold"
+            android:textSize="16dip" />
 
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="@android:dimen/thumbnail_width"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="2"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp">
 
             <TextView
                 android:id="@+id/node_name"
@@ -44,6 +59,10 @@
             android:id="@+id/node_clock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="16dp" />
-    </LinearLayout>
+            android:textSize="16dip"
+            android:layout_columnWeight="1"
+            android:textStyle="bold"
+            android:gravity="center_vertical|right" />
+    </GridLayout>
+
 </RelativeLayout>

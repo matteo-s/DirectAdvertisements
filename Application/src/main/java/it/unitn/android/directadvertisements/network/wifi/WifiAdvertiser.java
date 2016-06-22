@@ -65,9 +65,21 @@ public class WifiAdvertiser {
 
             Map<String, String> record = m.getRecord();
 
+            StringBuilder vector = new StringBuilder();
+            String value = record.get("v");
+            for (int i = 0; i < value.length(); i++) {
+                short s = (short) value.charAt(i);
+                vector.append(Short.toString(s));
+            }
+
+
             //add txt visibility key
             record.put("available", "visible");
-            Log.v("WifiAdvertiser", "advertise data " + record.keySet().toString() + ": " + record.values().toString());
+            Log.v("WifiAdvertiser", "advertise data "
+                            + record.keySet().toString() + ": "
+                            + record.get("s")
+                            + vector.toString()
+            );
 
             //start
             start(record, new WifiP2pManager.ActionListener() {
