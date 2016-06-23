@@ -477,6 +477,9 @@ public class MainService extends Service {
         if (msg.sender != mId) {
             Log.v("MainService", "clockUpdate exec from " + String.valueOf(msg.sender) + " clock " + String.valueOf(msg.clock));
 
+            //notify network layer
+            mNetworkService.receive(msg);
+
             //check if sender info is present
             if (msg.sender > 0) {
                 //update sender over stored value

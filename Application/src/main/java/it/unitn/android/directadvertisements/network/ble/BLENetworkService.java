@@ -261,6 +261,19 @@ public class BLENetworkService implements NetworkService {
         }
     }
 
+
+    /*
+    * Receive
+     */
+    @Override
+    public void receive(NetworkMessage msg) {
+        //ignore
+        Log.v("BLENetworkService", "receive msg from " + String.valueOf(msg.sender));
+    }
+/*
+*
+ */
+
     @Override
     public void getIdentifier() {
 

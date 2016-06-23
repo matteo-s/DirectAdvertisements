@@ -87,7 +87,6 @@ public class WifiNetworkMessage extends NetworkMessage {
         WifiNetworkMessage m = null;
 
         if (record.containsKey("s")
-                && record.containsKey("c")
                 && record.containsKey("v")) {
             //create
             m = new WifiNetworkMessage();
@@ -98,21 +97,22 @@ public class WifiNetworkMessage extends NetworkMessage {
             //get vector
             String v = record.get("v");
 
-             for (int i = 0; i < SLOTS; i++) {
-                 //char is unsigned, short is signed but clock is >0
-                 char s = v.charAt(i);
-                 short c = (short)s;
+            for (int i = 0; i < SLOTS; i++) {
+                //char is unsigned, short is signed but clock is >0
+                char s = v.charAt(i);
+                short c = (short) s;
 
-                 //clock should be > 0 if present
-                 if (c > 0) {
-                     m.clocks.put(i, c);
+                //clock should be > 0 if present
+                if (c > 0) {
+                    //id is i+1
+                    int id = i + 1;
+                    m.clocks.put(id, c);
 
-                     if (i == m.sender) {
-                         m.clock = c;
-                     }
-                 }
-             }
-
+                    if (id == m.sender) {
+                        m.clock = c;
+                    }
+                }
+            }
 
 
         }

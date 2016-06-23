@@ -75,6 +75,18 @@ public class WifiNetworkService implements NetworkService {
     public static final boolean MODE_ADAPTIVE = true;
     public static final int ADAPTIVE_STEP = 1000;
     public int ADAPTIVE_DURATION;
+    public int ADAPTIVE_PERIOD;
+
+    /*
+    * action
+    * 1. initial advertise
+    * 2. initial discovery
+    * 3-4. additional discoveries
+    * 5-9. 2n advertise
+    * 10. last discovery
+     */
+
+    public int ADAPTIVE_ACTION;
 
     /*
     * Context
@@ -280,13 +292,23 @@ public class WifiNetworkService implements NetworkService {
 //        }
 
 
+        if (MODE_ADAPTIVE) {
+            //set first step
+            ADAPTIVE_ACTION = 0;
+            ADAPTIVE_PERIOD = 0;
+        }
+
         sendMessage(MessageKeys.NETWORK_START, null);
     }
 
     @Override
     public void deactivate() {
         if (mReceiver != null) {
-            mContext.unregisterReceiver(mReceiver);
+            try {
+                mContext.unregisterReceiver(mReceiver);
+            } catch (Exception rex) {
+                //ignore
+            }
         }
         if (mAdvertiser != null) {
             //stop
@@ -341,7 +363,9 @@ public class WifiNetworkService implements NetworkService {
 
         if (MODE_ADAPTIVE) {
             //reset adaptive
-            ADAPTIVE_DURATION = ADVERTISE_DURATION;
+//            ADAPTIVE_DURATION = ADVERTISE_DURATION;
+            ADAPTIVE_ACTION = 0;
+            ADAPTIVE_PERIOD = 0;
         }
 
         if (!isActive) {
@@ -428,6 +452,26 @@ public class WifiNetworkService implements NetworkService {
     }
 
 
+    /*
+* Receive
+ */
+    @Override
+    public void receive(NetworkMessage msg) {
+        Log.v("WifiNetworkService", "receive msg from " + String.valueOf(msg.sender));
+
+        if (MODE_ADAPTIVE) {
+            //check if we can cut discovery
+            if (ADAPTIVE_ACTION == 2 || ADAPTIVE_ACTION == 3 || ADAPTIVE_ACTION == 4) {
+                //skip to next action
+                ADAPTIVE_ACTION = 5;
+            }
+        }
+    }
+
+    /*
+    *
+     */
+
     @Override
     public void getIdentifier() {
 
@@ -459,40 +503,143 @@ public class WifiNetworkService implements NetworkService {
         Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper hasPending " + String.valueOf(hasPending));
 
         if (isActive) {
-            advertiseAndDiscovery(new WifiP2pManager.ActionListener() {
-                @Override
-                public void onSuccess() {
-                    //call again after random sleep
-                    Random rand = new Random();
-                    int delay = rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
-                    Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper onSuccess sleep for " + String.valueOf(delay));
 
-                    mHandler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
-                            advertiseAndDiscoveryLooper();
-                        }
-                    }, delay);
+            if (!MODE_ADAPTIVE) {
+                advertiseAndDiscovery(new WifiP2pManager.ActionListener() {
+                    @Override
+                    public void onSuccess() {
+                        //call again after random sleep
+                        Random rand = new Random();
+                        int delay = rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper onSuccess sleep for " + String.valueOf(delay));
+
+                        mHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
+                                advertiseAndDiscoveryLooper();
+                            }
+                        }, delay);
+                    }
+
+                    @Override
+                    public void onFailure(int error) {
+                        //call again after random sleep
+                        Random rand = new Random();
+                        int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper onFailure error " + String.valueOf(error) + " sleep for " + String.valueOf(delay));
+
+                        mHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
+                                advertiseAndDiscoveryLooper();
+                            }
+                        }, delay);
+
+                    }
+                });
+            } else {
+                if (!hasPending) {
+                    hasPending = true;
+                    //follow period
+                    String action = getAdaptiveAction();
+                    int duration = getAdaptiveDuration();
+
+                    if (action.equals("advertise")) {
+                        mAdvertiser.advertise(mMessage, duration, new WifiP2pManager.ActionListener() {
+                            @Override
+                            public void onSuccess() {
+                                hasPending = false;
+
+                                Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper advertise onSuccess");
+
+                                //call again after random sleep
+                                Random rand = new Random();
+                                int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+
+                                mHandler.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
+                                        advertiseAndDiscoveryLooper();
+                                    }
+                                }, delay);
+                            }
+
+                            @Override
+                            public void onFailure(int error) {
+                                hasPending = false;
+                                Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper advertise onFailure error " + String.valueOf(error));
+
+                                //call again after random sleep
+                                Random rand = new Random();
+                                int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+
+                                mHandler.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
+                                        advertiseAndDiscoveryLooper();
+                                    }
+                                }, delay);
+                            }
+                        });
+                    } else if (action.equals("discovery")) {
+                        mDiscovery.discovery(duration, new WifiP2pManager.ActionListener() {
+                            @Override
+                            public void onSuccess() {
+                                hasPending = false;
+
+                                Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper discovery onSuccess");
+
+                                //call again after random sleep
+                                Random rand = new Random();
+                                int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+
+                                mHandler.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
+                                        advertiseAndDiscoveryLooper();
+                                    }
+                                }, delay);
+                            }
+
+                            @Override
+                            public void onFailure(int error) {
+                                hasPending = false;
+                                Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper discovery onFailure error " + String.valueOf(error));
+
+                                //call again after random sleep
+                                Random rand = new Random();
+                                int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+
+                                mHandler.postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
+                                        advertiseAndDiscoveryLooper();
+                                    }
+                                }, delay);
+                            }
+                        });
+                    } else {
+                        //call again after random sleep
+                        Random rand = new Random();
+                        int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                        Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper sleep for " + String.valueOf(delay));
+
+                        mHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
+                                advertiseAndDiscoveryLooper();
+                            }
+                        }, delay);
+                    }
                 }
-
-                @Override
-                public void onFailure(int error) {
-                    //call again after random sleep
-                    Random rand = new Random();
-                    int delay = rand.nextInt((2 * SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
-                    Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper onFailure error " + String.valueOf(error) + " sleep for " + String.valueOf(delay));
-
-                    mHandler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            Log.v("WifiNetworkService", "advertiseAndDiscoveryLooper callback run");
-                            advertiseAndDiscoveryLooper();
-                        }
-                    }, delay);
-
-                }
-            });
+            }
         }
     }
 
@@ -506,7 +653,7 @@ public class WifiNetworkService implements NetworkService {
 
             int duration = ADVERTISE_DURATION;
             if (MODE_ADAPTIVE) {
-                duration = ADAPTIVE_DURATION;
+                duration = ADAPTIVE_STEP;
             }
 
 
@@ -535,7 +682,7 @@ public class WifiNetworkService implements NetworkService {
                         }
                     });
 
-                    if(MODE_ADAPTIVE) {
+                    if (MODE_ADAPTIVE) {
                         //decrement duration
                         ADAPTIVE_DURATION = Math.max(ADAPTIVE_STEP, ADAPTIVE_DURATION - ADAPTIVE_STEP);
                     }
@@ -635,6 +782,85 @@ public class WifiNetworkService implements NetworkService {
             listener.onFailure(0);
         }
     }
+
+
+    /*
+    * Helper - adaptive period
+     */
+    public void nextAdaptiveAction() {
+        //increment
+        ADAPTIVE_ACTION++;
+
+
+    }
+
+    public String getAdaptiveAction() {
+        //call next
+        nextAdaptiveAction();
+
+        String action = "";
+        switch (ADAPTIVE_ACTION) {
+            case 1:
+                action = "advertise";
+                break;
+            case 2:
+                action = "discovery";
+                break;
+            case 3:
+                action = "discovery";
+                break;
+            case 4:
+                action = "discovery";
+                break;
+            case 5:
+                action = "discovery";
+                break;
+            case 6:
+                action = "advertise";
+                break;
+            case 7:
+                action = "advertise";
+                break;
+            case 8:
+                action = "advertise";
+                break;
+            case 9:
+                action = "advertise";
+                break;
+            case 10:
+                action = "advertise";
+                break;
+            case 11:
+                action = "advertise";
+                break;
+            case 12:
+                action = "discovery";
+                break;
+        }
+
+        //increment use
+        ADAPTIVE_PERIOD++;
+        if (ADAPTIVE_PERIOD == 9) {
+            //force last action
+            ADAPTIVE_ACTION = 11;
+        }
+
+        Log.v("WifiNetworkService", "adaptive get action " + action + " for period " + String.valueOf(ADAPTIVE_PERIOD));
+
+        if (ADAPTIVE_PERIOD == 10) {
+            //reset
+            ADAPTIVE_ACTION = 0;
+            ADAPTIVE_PERIOD = 0;
+        }
+
+        return action;
+    }
+
+    public int getAdaptiveDuration() {
+        int duration = ADAPTIVE_STEP;
+        return duration;
+    }
+
 
     /*
     * Helper - message

@@ -68,6 +68,8 @@ public interface NetworkService {
 
     public void inquiry(int id);
 
+    public void receive(NetworkMessage msg);
+
     /*
     * Info
      */

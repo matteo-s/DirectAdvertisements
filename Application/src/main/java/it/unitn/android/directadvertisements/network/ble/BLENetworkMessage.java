@@ -146,7 +146,7 @@ public class BLENetworkMessage extends NetworkMessage {
             //remaining space allocated to slots of 2 bytes
 //            int k = 3;
             int k = 1;
-            for (int i = 0; i < SLOTS; i++) {
+            for (int i = 1; (i <= SLOTS && k < bytes.length); i++) {
 //                byteBuffer.put(bytes[k]);
 //                byteBuffer.put(bytes[k + 1]);
 //
@@ -154,7 +154,7 @@ public class BLENetworkMessage extends NetworkMessage {
 //
 //                short c = byteBuffer.getShort();
 
-                short  c = (short)((bytes[k+1] << 8) + (bytes[k] & 0xFF));
+                short c = (short) ((bytes[k + 1] << 8) + (bytes[k] & 0xFF));
                 //clock should be > 0 if present
                 if (c > 0) {
                     m.clocks.put(i, c);

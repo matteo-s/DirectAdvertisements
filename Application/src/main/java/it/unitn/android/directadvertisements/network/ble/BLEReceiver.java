@@ -50,6 +50,17 @@ public class BLEReceiver extends ScanCallback {
                 //set sender address
                 n.address = address;
 
+                StringBuilder vector = new StringBuilder();
+                for (int i = 1; i <= BLENetworkMessage.SLOTS; i++) {
+                    if (n.clocks.containsKey(i)) {
+                        vector.append(Short.toString(n.clocks.get(i)));
+                    } else {
+                        vector.append("0");
+                    }
+                }
+
+                Log.v("BLEReceiver", "received msg from " + address + " : " + vector.toString());
+
 
                 //directly send to service
                 Message msg = Message.obtain(null, MessageKeys.CLOCK_RECEIVE, 0, 0);

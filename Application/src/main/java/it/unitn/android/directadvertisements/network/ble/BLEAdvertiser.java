@@ -100,6 +100,14 @@ public class BLEAdvertiser {
 
             }
 
+            StringBuilder vector = new StringBuilder();
+            for (int i : m.clocks.keySet()) {
+                vector.append(Short.toString(m.clocks.get(i)));
+            }
+
+            Log.v("BLEReceiver", "advertise data : " + vector.toString());
+
+
             //start
             start(advertiseData, mSettings, new ActionListener() {
 

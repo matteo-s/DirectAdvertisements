@@ -84,7 +84,7 @@ public class WifiDiscovery {
 
                 Log.v("WifiDiscovery", "receive data from " + address + " data "
                                 + record.keySet().toString() + ": "
-                                + record.get("s")
+                                + record.get("s") + "|"
                                 + vector.toString()
                 );
 
@@ -127,7 +127,6 @@ public class WifiDiscovery {
 
                 @Override
                 public void onSuccess() {
-                    isActive = true;
                     Log.v("WifiDiscovery", "start discovery");
 
                     //use handler for stopping after duration - 1 shot
@@ -144,6 +143,9 @@ public class WifiDiscovery {
                 @Override
                 public void onFailure(int error) {
                     Log.v("WifiDiscovery", "fail discovery");
+                    //force stop
+                    stop(null);
+
                     //call listener
                     if (listener != null) {
                         listener.onFailure(error);
@@ -162,7 +164,6 @@ public class WifiDiscovery {
 
                 @Override
                 public void onSuccess() {
-                    isActive = true;
                     Log.v("WifiDiscovery", "start discovery");
 
                     //use handler for stopping after duration - 1 shot
@@ -179,6 +180,9 @@ public class WifiDiscovery {
                 @Override
                 public void onFailure(int error) {
                     Log.v("WifiDiscovery", "fail advertise");
+                    //force stop
+                    stop(null);
+
                     //call listener
                     if (listener != null) {
                         listener.onFailure(error);
@@ -195,6 +199,7 @@ public class WifiDiscovery {
         if (!isActive) {
 //            //register listeners
 //            mManager.setDnsSdResponseListeners(mChannel, mResponseListener, mTxtListener);
+            isActive = true;
 
             //add service request for discovery
             mManager.addServiceRequest(mChannel, mServiceRequest, new ActionListener() {
@@ -202,42 +207,47 @@ public class WifiDiscovery {
                 @Override
                 public void onSuccess() {
                     Log.v("WifiDiscovery", "Added service discovery request");
+                    mManager.discoverServices(mChannel, new ActionListener() {
+
+                        @Override
+                        public void onSuccess() {
+
+                            Log.v("WifiDiscovery", "Service discovery initiated");
+                            //call listener
+                            if (listener != null) {
+                                listener.onSuccess();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(int error) {
+                            Log.v("WifiDiscovery", "Service discovery failed");
+                            //force stop
+                            stop(null);
+
+                            //call listener
+                            if (listener != null) {
+                                listener.onFailure(error);
+                            }
+
+                        }
+                    });
                 }
 
                 @Override
                 public void onFailure(int error) {
                     Log.v("WifiDiscovery", "Failed adding service discovery request");
+                    //force stop
+                    stop(null);
+
                     //call listener
                     if (listener != null) {
                         listener.onFailure(error);
                     }
                 }
             });
-            mManager.discoverServices(mChannel, new ActionListener() {
-
-                @Override
-                public void onSuccess() {
-
-                    Log.v("WifiDiscovery", "Service discovery initiated");
-                    //call listener
-                    if (listener != null) {
-                        listener.onSuccess();
-                    }
-                }
-
-                @Override
-                public void onFailure(int error) {
-                    Log.v("WifiDiscovery", "Service discovery failed");
-                    //call listener
-                    if (listener != null) {
-                        listener.onFailure(error);
-                    }
-
-                }
-            });
 
 
-            isActive = true;
         }
     }
 
@@ -249,6 +259,7 @@ public class WifiDiscovery {
                 @Override
                 public void onSuccess() {
                     isActive = false;
+
                     Log.v("WifiDiscovery", "Service discovery stopped");
                     //call listener
                     if (listener != null) {
@@ -259,6 +270,8 @@ public class WifiDiscovery {
                 @Override
                 public void onFailure(int error) {
                     Log.v("WifiDiscovery", "Service discovery failed");
+                    isActive = false;
+
                     //call listener
                     if (listener != null) {
                         listener.onFailure(error);

@@ -77,7 +77,7 @@ public class WifiAdvertiser {
             record.put("available", "visible");
             Log.v("WifiAdvertiser", "advertise data "
                             + record.keySet().toString() + ": "
-                            + record.get("s")
+                            + record.get("s") + "|"
                             + vector.toString()
             );
 
