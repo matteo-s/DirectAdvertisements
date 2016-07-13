@@ -45,7 +45,11 @@ public class BLEScanner {
         mScanFilter = new ScanFilter.Builder().setServiceUuid(BLENetworkService.Service_UUID).build();
 
         //setup settings
-        mSettings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
+//        mSettings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build();
+        mSettings = buildScanSettings();
+
+        //dump
+        Log.v("BLEScanner", "scanSettings" + mSettings.toString());
 
         //create receiver
         mReceiver = new BLEReceiver(mMessenger);
@@ -120,5 +124,11 @@ public class BLEScanner {
             listener.onSuccess();
         }
     }
-
+    public ScanSettings buildScanSettings() {
+        ScanSettings.Builder settingsBuilder = new ScanSettings.Builder();
+        settingsBuilder.setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY);
+        //can't set all matches, so depends on device if packets from same source are cached/filtered
+//        settingsBuilder.setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES);
+        return settingsBuilder.build();
+    }
 }

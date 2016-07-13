@@ -4,7 +4,7 @@
 
 package it.unitn.android.directadvertisements.app;
 
-import it.unitn.android.directadvertisements.MainActivity;
+import it.unitn.android.directadvertisements.DebugActivity;
 import it.unitn.android.directadvertisements.clocks.ClockService;
 import it.unitn.android.directadvertisements.network.NetworkService;
 
@@ -16,7 +16,7 @@ public class MessageKeys {
      */
 
     public static final String DEST_SERVICE = MainService.class.getName();
-    public static final String DEST_ACTIVITY = MainActivity.class.getName();
+    public static final String DEST_ACTIVITY = DebugActivity.class.getName();
     public static final String DEST_CLOCK = ClockService.class.getName();
     public static final String DEST_NETWORK = NetworkService.class.getName();
 

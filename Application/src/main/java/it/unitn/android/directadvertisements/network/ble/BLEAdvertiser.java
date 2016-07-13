@@ -90,7 +90,6 @@ public class BLEAdvertiser {
 
             byte[] bytes = advertiseData.getServiceData().get(BLENetworkService.Service_UUID);
 
-            //add txt visibility key
             Log.v("BLEAdvertiser", "advertise data length " + String.valueOf(bytes.length) + ": " + BLENetworkMessage.byteArrayToString(bytes));
             SparseArray<byte[]> manufacturer = advertiseData.getManufacturerSpecificData();
 
@@ -101,11 +100,15 @@ public class BLEAdvertiser {
             }
 
             StringBuilder vector = new StringBuilder();
-            for (int i : m.clocks.keySet()) {
-                vector.append(Short.toString(m.clocks.get(i)));
+            for (int i = 1; i <= BLENetworkMessage.SLOTS; i++) {
+                if (m.clocks.containsKey(i)) {
+                    vector.append(Short.toString(m.clocks.get(i)));
+                } else {
+                    vector.append("0");
+                }
             }
 
-            Log.v("BLEReceiver", "advertise data : " + vector.toString());
+            Log.v("BLEAdvertiser", "advertise data : " + vector.toString());
 
 
             //start
@@ -168,10 +171,10 @@ public class BLEAdvertiser {
      */
     public AdvertiseSettings buildAdvertiseSettings() {
         AdvertiseSettings.Builder settingsBuilder = new AdvertiseSettings.Builder();
-        settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER);
+        settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY);
         settingsBuilder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM);
         settingsBuilder.setConnectable(false);
-        settingsBuilder.setTimeout(0);
+        settingsBuilder.setTimeout(BLENetworkService.ADVERTISE_DURATION);
         return settingsBuilder.build();
     }
 }

@@ -27,8 +27,8 @@ public class BLEReceiver extends ScanCallback {
 
     @Override
     public void onScanResult(int callbackType, ScanResult result) {
-        //call super first
-        super.onScanResult(callbackType, result);
+//        //call super first - DISABLED
+//        super.onScanResult(callbackType, result);
 
         //check data
         if (result != null
@@ -87,7 +87,11 @@ public class BLEReceiver extends ScanCallback {
 
     @Override
     public void onScanFailed(int errorCode) {
-        super.onScanFailed(errorCode);
+
+//        super.onScanFailed(errorCode);
+        Log.v("BLEReceiver", "onScanFailed " + String.valueOf(errorCode));
+
+
     }
 
 

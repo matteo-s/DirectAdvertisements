@@ -48,7 +48,13 @@ public class LocalClockService implements ClockService {
 
     @Override
     public short increment() {
-        return _c++;
+        _c++;
+        //check boundaries
+        if (_c > (2 * Byte.MAX_VALUE)) {
+            //reset to 1
+            _c = 1;
+        }
+        return _c;
     }
 
     @Override

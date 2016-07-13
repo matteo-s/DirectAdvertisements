@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/qr_generate_main_layout"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:columnCount="1"
+    android:orientation="vertical"
+    android:paddingBottom="0dp"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="0dp">
+
+    <GridLayout
+        android:id="@+id/qr_generate_controls_container"
+        android:layout_width="fill_parent"
+        android:layout_height="48dp"
+        android:layout_alignParentStart="false"
+        android:layout_alignParentTop="true"
+        android:layout_rowWeight="1"
+        android:columnCount="2"
+        android:rowCount="1">
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="Next"
+            android:id="@+id/qr_generate_button_next"
+            android:layout_columnWeight="1"/>
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="Start"
+            android:id="@+id/qr_generate_button_start"
+            android:layout_columnWeight="1" />
+    </GridLayout>
+
+    <FrameLayout
+        android:id="@+id/qr_generate_image_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignWithParentIfMissing="false"
+        android:layout_below="@id/qr_generate_controls_container"
+        android:background="@color/cardview_light_background">
+
+        <TextView
+            android:id="@+id/qr_generate_field_id"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Device #"
+            android:layout_gravity="center_horizontal|top" />
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/qr_generate_image"
+            android:layout_gravity="center_horizontal|bottom"
+            android:layout_below="@id/qr_generate_field_id"/>
+
+    </FrameLayout>
+
+
+
+</RelativeLayout>
