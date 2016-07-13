@@ -176,6 +176,11 @@ public class MainActivity extends FragmentActivity {
 
             }
         });
+
+        final Switch startToggleNetwork = (Switch) findViewById(R.id.start_switch_network);
+        //disable
+        startToggleNetwork.setEnabled(false);
+
     }
 
     protected void activityGenerate() {
@@ -368,8 +373,13 @@ public class MainActivity extends FragmentActivity {
 
 
         //use ble
+//        String service = NetworkService.SERVICE_BLE;
+        Switch toggleNetwork = (Switch) findViewById(R.id.start_switch_network);
         String service = NetworkService.SERVICE_BLE;
-
+        if (!toggleNetwork.isChecked()) {
+            //use blue
+            service = NetworkService.SERVICE_WIFI;
+        }
 
         Bundle bundle = new Bundle();
         bundle.putString("network", service);

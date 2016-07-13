@@ -7,7 +7,10 @@
     <ViewFlipper
         android:id="@+id/viewflipper"
         android:layout_width="fill_parent"
-        android:layout_height="fill_parent">
+        android:layout_height="fill_parent"
+        android:paddingLeft="2dp"
+        android:paddingRight="2dp"
+        android:paddingTop="6dp">
 
         <LinearLayout
             android:id="@+id/start_layout"
@@ -21,34 +24,51 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="Select mode for operation" />
+                android:text="Select mode for operation"
+                android:layout_margin="8dp" />
 
             <Button
                 android:id="@+id/start_button_master"
+                style="@android:style/Widget.Material.Button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="Master Node" />
+                android:text="Master"
+                android:background="#009688" />
 
             <Button
                 android:id="@+id/start_button_slave"
+                style="@android:style/Widget.Material.Light.Button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="Slave Node" />
-
+                android:text="Slave" />
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dip"
+                android:layout_margin="24dp"
+                android:background="#009688"
+                android:padding="6dp"
+                android:id="@+id/start_divider" />
             <Button
                 android:id="@+id/start_button_debug"
-                style="@android:style/Widget.Material.Light.Button.Small"
+                style="@android:style/Widget.Material.Button.Borderless.Colored"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:text="Debug" />
 
+            <Switch
+                android:id="@+id/start_switch_network"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:checked="true"
+                android:text="WiFi - BLE" />
         </LinearLayout>
 
         <RelativeLayout
-            android:id="@+id/qr_generate_layout"
+            android:id="@+id/main_layout"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:columnCount="1"
@@ -58,74 +78,94 @@
             android:paddingRight="16dp"
             android:paddingTop="0dp">
 
-            <GridLayout
-                android:id="@+id/qr_generate_controls_container"
+            <TableLayout
+                android:id="@+id/main_input_container"
                 android:layout_width="fill_parent"
                 android:layout_height="48dp"
                 android:layout_alignParentStart="false"
                 android:layout_alignParentTop="true"
                 android:layout_rowWeight="1"
-                android:columnCount="2"
-                android:rowCount="1">
+                android:stretchColumns="*"
+                android:layout_marginBottom="8dp">
 
-                <Button
-                    android:id="@+id/qr_generate_button_next"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_columnWeight="1"
-                    android:text="Next" />
 
-                <Button
-                    android:id="@+id/qr_generate_button_start"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_columnWeight="1"
-                    android:text="Start" />
-            </GridLayout>
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <TextView
+                        android:id="@+id/main_field_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="center"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="Device ID"
+                        android:textSize="18dp" />
+
+                    <TextView
+                        android:id="@+id/main_field_clock"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:layout_span="1"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="center"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="clock"
+                        android:textColor="@color/black"
+                        android:textSize="18dp" />
+
+                    <Button
+                        android:id="@+id/main_button_service"
+                        style="@android:style/Widget.Material.Light.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_span="1"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="center_horizontal"
+                        android:background="@color/colorPrimary"
+                        android:text="Stop"
+                        android:textColor="@color/textColorPrimary" />
+                </TableRow>
+            </TableLayout>
 
             <FrameLayout
-                android:id="@+id/qr_generate_image_container"
+                android:id="@+id/main_list_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignWithParentIfMissing="false"
-                android:layout_below="@id/qr_generate_controls_container"
+                android:layout_below="@id/main_input_container"
                 android:background="@color/cardview_light_background">
 
-                <TextView
-                    android:id="@+id/qr_generate_field_id"
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:layout_gravity="center_horizontal|top"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:text="Device #" />
-
-                <ImageView
-                    android:id="@+id/qr_generate_image"
+                <ListView
+                    android:id="@+id/main_list_view"
+                    style="@style/CardView.Light"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_below="@id/qr_generate_field_id"
-                    android:layout_gravity="center_horizontal|bottom" />
+                    android:layout_gravity="center_horizontal|top"
+                    android:background="#fefefe"
+                    android:divider="@color/colorPrimary" />
 
             </FrameLayout>
 
-
         </RelativeLayout>
-
 
         <LinearLayout
             android:id="@+id/qr_scan_layout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_centerVertical="true">
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/qr_scan_label_intro"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="Scan qr code or input id" />
+                android:text="Scan qr code or input id"
+                android:layout_margin="8dp" />
 
             <Button
                 android:id="@+id/qr_scan_button_scan"
@@ -133,6 +173,14 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:text="Scan" />
+
+            <View
+                android:layout_width="fill_parent"
+                android:layout_height="1dip"
+                android:layout_margin="24dp"
+                android:background="#009688"
+                android:padding="6dp"
+                android:id="@+id/qr_scan_divider" />
 
             <GridLayout
                 android:id="@+id/debug_input_container"
@@ -173,7 +221,7 @@
         </LinearLayout>
 
         <RelativeLayout
-            android:id="@+id/main_layout"
+            android:id="@+id/qr_generate_layout"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
             android:columnCount="1"
@@ -183,62 +231,78 @@
             android:paddingRight="16dp"
             android:paddingTop="0dp">
 
-            <GridLayout
-                android:id="@+id/main_input_container"
+            <TextView
+                android:layout_width="fill_parent"
+                android:layout_height="24dp"
+                android:id="@+id/qr_generate_label"
+                android:text="Generate code for slaves and then start"
+                android:gravity="center"
+                android:layout_margin="8dp" />
+
+            <TableLayout
+                android:id="@+id/qr_generate_controls_container"
+                android:layout_below="@id/qr_generate_label"
                 android:layout_width="fill_parent"
                 android:layout_height="48dp"
-                android:layout_alignParentStart="false"
-                android:layout_alignParentTop="true"
+                android:alignmentMode="alignBounds"
                 android:layout_rowWeight="1"
-                android:columnCount="3"
-                android:rowCount="1">
+                android:useDefaultMargins="true"
+                android:stretchColumns="*">
 
-                <TextView
-                    android:id="@+id/main_field_id"
-                    android:layout_width="wrap_content"
-                    android:layout_height="fill_parent"
-                    android:layout_weight="1"
-                    android:layout_columnWeight="1"
-                    android:gravity="center"
-                    android:text="Device ID" />
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
 
+                    <Button
+                        android:id="@+id/qr_generate_button_next"
+                        style="@android:style/Widget.Material.Light.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_span="1"
+                        android:layout_gravity="center"
+                        android:text="Next" />
 
-                <TextView
-                    android:id="@+id/main_field_clock"
-                    android:layout_width="wrap_content"
-                    android:layout_height="fill_parent"
-                    android:layout_columnWeight="1"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:text="clock" />
+                    <Button
+                        android:id="@+id/qr_generate_button_start"
+                        style="@android:style/Widget.Material.Light.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_span="1"
+                        android:layout_gravity="center"
+                        android:background="#009688"
+                        android:text="Start" />
+                </TableRow>
+            </TableLayout>
 
-                <Button
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Stop"
-                    android:id="@+id/main_button_service"
-                    android:layout_gravity="center_horizontal" />
-            </GridLayout>
+            <TextView
+                android:id="@+id/qr_generate_field_id"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_below="@id/qr_generate_controls_container"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Device #" />
 
             <FrameLayout
-                android:id="@+id/main_list_container"
+                android:id="@+id/qr_generate_image_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignWithParentIfMissing="false"
-                android:layout_below="@id/main_input_container"
+                android:layout_below="@id/qr_generate_field_id"
                 android:background="@color/cardview_light_background">
 
-                <ListView
-                    android:id="@+id/main_list_view"
-                    style="@style/CardView.Light"
+                <ImageView
+                    android:id="@+id/qr_generate_image"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal|top"
-                    android:background="#fefefe"
-                    android:divider="@color/colorPrimary" />
+                    android:layout_below="@id/qr_generate_field_id"
+                    android:layout_gravity="center_horizontal|bottom" />
 
             </FrameLayout>
 
+
         </RelativeLayout>
+
+
     </ViewFlipper>
 </LinearLayout>
