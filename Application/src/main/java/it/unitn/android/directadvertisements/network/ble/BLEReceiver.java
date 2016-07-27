@@ -16,13 +16,17 @@ import android.util.Log;
 import java.util.List;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
+import it.unitn.android.directadvertisements.log.LogService;
+import it.unitn.android.directadvertisements.log.LogServiceUtil;
 
 public class BLEReceiver extends ScanCallback {
 
     private Messenger mMessenger;
+    private LogService mLogger;
 
     public BLEReceiver(Messenger messenger) {
         mMessenger = messenger;
+        mLogger = LogServiceUtil.getLogger();
     }
 
     @Override
@@ -44,6 +48,7 @@ public class BLEReceiver extends ScanCallback {
 
                 Log.v("BLEReceiver", "receive data from " + address + " data length " + String.valueOf(bytes.length) + " : " + BLENetworkMessage.byteArrayToString(bytes));
 
+
                 //get message from bytes
                 BLENetworkMessage n = BLENetworkMessage.parse(bytes);
 
@@ -61,6 +66,8 @@ public class BLEReceiver extends ScanCallback {
 
                 Log.v("BLEReceiver", "received msg from " + address + " : " + vector.toString());
 
+                //log to file
+                mLogger.info("ble", "received msg from " + address + " : " + vector.toString());
 
                 //directly send to service
                 Message msg = Message.obtain(null, MessageKeys.CLOCK_RECEIVE, 0, 0);

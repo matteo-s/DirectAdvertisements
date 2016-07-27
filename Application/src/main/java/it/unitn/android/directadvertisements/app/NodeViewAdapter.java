@@ -15,11 +15,10 @@ import android.widget.TextView;
 import java.util.List;
 
 import it.unitn.android.directadvertisements.R;
-import it.unitn.android.directadvertisements.network.NetworkNode;
 
-public class NodeViewAdapter extends ArrayAdapter<NetworkNode> {
+public class NodeViewAdapter extends ArrayAdapter<NodeView> {
 
-    public NodeViewAdapter(Context context, List<NetworkNode> items) {
+    public NodeViewAdapter(Context context, List<NodeView> items) {
 
         super(context, R.layout.listitem_node, items);
         Log.v("NodeViewAdapter", "onCreate");
@@ -29,7 +28,7 @@ public class NodeViewAdapter extends ArrayAdapter<NetworkNode> {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder viewHolder;
-        NetworkNode item = getItem(position);
+        NodeView item = getItem(position);
 
         if (convertView == null) {
             // inflate the GridView item layout
@@ -55,6 +54,10 @@ public class NodeViewAdapter extends ArrayAdapter<NetworkNode> {
         viewHolder.nName.setText(item.name);
         viewHolder.nAddress.setText(item.address);
         viewHolder.nClock.setText(String.valueOf(item.clock));
+
+        //set color
+//        convertView.setBackgroundColor(item.color);
+        convertView.setBackgroundResource(item.color);
 
         return convertView;
     }

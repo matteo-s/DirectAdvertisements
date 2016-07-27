@@ -7,6 +7,7 @@ package it.unitn.android.directadvertisements.app;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -31,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 
 import it.unitn.android.directadvertisements.clocks.ClockService;
 import it.unitn.android.directadvertisements.clocks.ClockServiceUtil;
+import it.unitn.android.directadvertisements.log.LogService;
+import it.unitn.android.directadvertisements.log.LogServiceUtil;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
@@ -72,7 +75,10 @@ public class MainService extends Service {
      */
     private SimulatorService mSimulatorService;
 
-
+    /*
+    * Log
+     */
+    private LogService mLogger;
 
     /*
     * App
@@ -268,6 +274,19 @@ public class MainService extends Service {
                     Log.v("MainService msg", "network info callback");
                     networkInfo();
                     break;
+                case MessageKeys.LOG_EXPORT:
+                    Log.v("MainService msg", "export log callback");
+                    final String comp = (String) bundle.getSerializable("component");
+                    exportLog(comp);
+                    break;
+                case MessageKeys.LOG_CLEAR:
+                    Log.v("MainService msg", "clear log callback");
+                    clearLog();
+                    break;
+                case MessageKeys.REQUIRE_UPDATE:
+                    Log.v("MainService msg", "require update callback");
+                    notifyUpdate();
+                    break;
                 case MessageKeys.NOTIFY_MESSAGE:
                     //send broadcast
                     final String message = (String) bundle.get("message");
@@ -336,7 +355,11 @@ public class MainService extends Service {
                         intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
 
                         ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+                        short c = mClockService.get();
+
                         intent.putExtra("nodes", nodes);
+                        intent.putExtra("clock", c);
+
                         mLocalBroadcastManager.sendBroadcast(intent);
                     }
                 });
@@ -349,6 +372,10 @@ public class MainService extends Service {
         //read clock as integer
         final short c = mClockService.get();
         Log.v("MainService clock", "clock value " + String.valueOf(c));
+
+        //logger
+        mLogger.info("clock", String.valueOf(c));
+
 
         //send
         clockBroadcast();
@@ -379,7 +406,11 @@ public class MainService extends Service {
                 intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
 
                 ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+                short c = mClockService.get();
+
                 intent.putExtra("nodes", nodes);
+                intent.putExtra("clock", c);
+
                 mLocalBroadcastManager.sendBroadcast(intent);
             }
         });
@@ -418,13 +449,30 @@ public class MainService extends Service {
             //build clocks
             n.clocks = new HashMap<>();
             n.addresses = new HashMap<>();
+            int maxId = mNode.id;
 
             //get nodes
             List<NetworkNode> nodes = mNetworkRegistry.getNodes();
             for (NetworkNode node : nodes) {
                 n.clocks.put(node.id, node.clock);
                 n.addresses.put(node.id, node.address);
+
+                if (node.id > maxId) {
+                    maxId = node.id;
+                }
+
             }
+
+            StringBuilder vector = new StringBuilder();
+            for (int i = 1; i <= maxId; i++) {
+                if (n.clocks.containsKey(i)) {
+                    vector.append(Short.toString(n.clocks.get(i))).append(" ");
+                } else {
+                    vector.append("0").append(" ");
+                }
+            }
+            //logger
+            mLogger.info("nodes", vector.toString());
 
             //send
             mNetworkService.broadcast(n);
@@ -545,6 +593,7 @@ public class MainService extends Service {
                 updated = true;
             }
 
+
             if (updated) {
                 Log.v("MainService", "clockUpdate notify");
 
@@ -557,12 +606,12 @@ public class MainService extends Service {
                         intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
 
                         ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+                        short c = mClockService.get();
                         Log.v("MainService", "clockUpdate notify nodes " + String.valueOf(nodes.size()));
 
-//                        Bundle bundle = new Bundle();
-//                        bundle.putSerializable("nodes", nodes);
-
                         intent.putExtra("nodes", nodes);
+                        intent.putExtra("clock", c);
+
                         mLocalBroadcastManager.sendBroadcast(intent);
                     }
                 });
@@ -592,6 +641,9 @@ public class MainService extends Service {
             i = 0;
         }
         Log.v("MainService", "MainService start node " + String.valueOf(i) + ", network " + network);
+
+        //logger
+        mLogger = LogServiceUtil.getLogger(this);
 
         mNode = new NetworkNode(i);
 
@@ -701,6 +753,64 @@ public class MainService extends Service {
         }
     }
 
+    /*
+    * notify
+     */
+    protected void notifyUpdate() {
+        //notify activity
+        mServiceHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                // Send broadcast out with action filter and extras
+                Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+                intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
+
+                ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+                short c = mClockService.get();
+
+                intent.putExtra("nodes", nodes);
+                intent.putExtra("clock", c);
+
+                mLocalBroadcastManager.sendBroadcast(intent);
+            }
+        });
+    }
+
+    /*
+    * Log
+     */
+    protected void exportLog(String component) {
+        if (mLogger == null) {
+            mLogger = LogServiceUtil.getLogger(this);
+
+        }
+
+        Log.v("MainService", "MainService export log for " + component);
+
+        final String path = mLogger.path(component);
+
+
+        //notify
+        mServiceHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                // Send broadcast out with action filter and extras
+                Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+                intent.putExtra(MessageKeys.TYPE, MessageKeys.LOG_EXPORT);
+                intent.putExtra("path", path);
+                mLocalBroadcastManager.sendBroadcast(intent);
+            }
+        });
+
+
+    }
+
+    protected void clearLog() {
+        if (mLogger != null) {
+            Log.v("MainService", "MainService clear log");
+            mLogger.clear();
+        }
+    }
 
     protected void destroy() {
         this.stopSelf();

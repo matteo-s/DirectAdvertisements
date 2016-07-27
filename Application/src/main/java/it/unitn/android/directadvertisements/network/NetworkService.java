@@ -11,6 +11,7 @@ public interface NetworkService {
 
     public static final String SERVICE_BLE = "ble";
     public static final String SERVICE_WIFI = "wifi";
+    public static final String SERVICE_PROXY = "proxy";
 
     // public static final int REQUEST_ENABLE_BLE = 11;
     // public static final int REQUEST_ENABLE_WIFI = 12;

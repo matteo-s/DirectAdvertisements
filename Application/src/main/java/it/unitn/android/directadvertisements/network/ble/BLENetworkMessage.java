@@ -14,8 +14,7 @@ import it.unitn.android.directadvertisements.network.NetworkMessage;
 
 public class BLENetworkMessage extends NetworkMessage {
 
-    public static final int SLOTS = 10
-            ;
+    public static final int SLOTS = 10;
 
     public BLENetworkMessage() {
         sender = 0;

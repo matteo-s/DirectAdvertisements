@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/log_layout"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:columnCount="1"
+    android:orientation="vertical"
+    android:paddingBottom="0dp"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="0dp">
+
+    <TableLayout
+        android:id="@+id/log_input_container"
+        android:layout_width="fill_parent"
+        android:layout_height="48dp"
+        android:layout_alignParentStart="false"
+        android:layout_alignParentTop="true"
+        android:layout_marginBottom="8dp"
+        android:layout_rowWeight="1"
+        android:stretchColumns="*">
+
+
+        <TableRow
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/log_field_label"
+                android:layout_width="wrap_content"
+                android:layout_height="fill_parent"
+                android:layout_columnWeight="1"
+                android:layout_gravity="center"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="log"
+                android:textSize="18dp" />
+
+            <Button
+                android:id="@+id/log_button_clear"
+                style="@android:style/Widget.Material.Button.Borderless.Colored"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_gravity="center_horizontal"
+                android:layout_span="1"
+                android:layout_weight="1"
+                android:text="Clear" />
+
+            <Button
+                android:id="@+id/log_button_close"
+                style="@android:style/Widget.Material.Light.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_gravity="center_horizontal"
+                android:layout_span="1"
+                android:text="Close" />
+        </TableRow>
+    </TableLayout>
+
+    <ScrollView
+        android:id="@+id/log_text_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignWithParentIfMissing="false"
+        android:layout_below="@id/log_input_container"
+        android:background="@color/cardview_light_background"
+        android:fillViewport="false"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fillViewport="true">
+
+            <TextView
+                android:id="@+id/log_text_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+        </HorizontalScrollView>
+
+
+    </ScrollView>
+
+
+    <!--<fragment-->
+    <!--android:name="it.unitn.android.directadvertisements.ScannerFragment"-->
+    <!--android:id="@+id/scanner_fragment"-->
+    <!--android:layout_width="match_parent"-->
+    <!--android:layout_height="wrap_content" />-->
+
+    <!--<fragment-->
+    <!--android:name="it.unitn.android.directadvertisements.AdvertiserFragment"-->
+    <!--android:id="@+id/advertiser_fragment"-->
+    <!--android:layout_width="match_parent"-->
+    <!--android:layout_height="wrap_content" />-->
+
+</RelativeLayout>

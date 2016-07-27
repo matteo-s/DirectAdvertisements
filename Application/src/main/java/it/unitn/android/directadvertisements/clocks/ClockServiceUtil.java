@@ -21,6 +21,10 @@ public class ClockServiceUtil {
         return _service;
     }
 
+    public static ClockService getService() {
+
+        return _service;
+    }
     /*
     * Clock
      */

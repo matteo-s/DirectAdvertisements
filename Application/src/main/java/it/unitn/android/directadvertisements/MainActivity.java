@@ -12,6 +12,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Message;
@@ -19,6 +20,7 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.content.FileProvider;
 import android.support.v4.content.LocalBroadcastManager;
 import android.text.Layout;
 import android.util.Log;
@@ -38,13 +40,17 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
+import java.io.File;
 import java.util.List;
 
 import it.unitn.android.directadvertisements.app.MainService;
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.app.NodesFragment;
+import it.unitn.android.directadvertisements.log.LogServiceUtil;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
+import it.unitn.android.directadvertisements.settings.SettingsService;
+import it.unitn.android.directadvertisements.settings.SettingsServiceUtil;
 
 public class MainActivity extends FragmentActivity {
 
@@ -57,8 +63,12 @@ public class MainActivity extends FragmentActivity {
     Messenger mMessenger;
     NodesFragment nodesFragment;
     ViewFlipper viewFlipper;
+    SettingsService mSettings;
 
     int nodeCount = 0;
+    String curActivity = "loading";
+    boolean restricted = false;
+    boolean isRunning = false;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -68,7 +78,10 @@ public class MainActivity extends FragmentActivity {
             // Create the Messenger object
             mMessenger = new Messenger(service);
 
-
+            //check if loading activity, then move to start
+            if (curActivity.equals("loading")) {
+                activityDispatch();
+            }
         }
 
         @Override
@@ -120,16 +133,66 @@ public class MainActivity extends FragmentActivity {
         viewFlipper = (ViewFlipper) findViewById(R.id.viewflipper);
         viewFlipper.stopFlipping();
 
-
-        //load start activity
-        activityStart();
-
         nodesFragment = new NodesFragment();
         //setup fragments
         setupFragments();
 
+        //read settings
+        if (mSettings == null) {
+            mSettings = SettingsServiceUtil.getService(this);
+        }
+
+        //load activity
+        activityLoading();
+
     }
 
+
+    protected void activityDispatch() {
+        //check activity from settings
+        String previous = mSettings.getSetting("activity", "loading");
+        restricted = Boolean.parseBoolean(mSettings.getSetting("restricted", "false"));
+
+        //check if previous run
+        if (previous.equals("main")) {
+            String role = mSettings.getSetting("role", "slave");
+            int id = Integer.parseInt(mSettings.getSetting("id", "0"));
+
+            if (id != 0) {
+                //set restricted
+                restricted = true;
+                mSettings.setSetting("restricted", Boolean.toString(restricted));
+                mSettings.writeSettings();
+
+                activityMain(role.equals("master"), id, true);
+            } else {
+                //reset settings and load start
+                mSettings.clearSetting("role");
+                mSettings.clearSetting("activity");
+                mSettings.clearSetting("id");
+                mSettings.writeSettings();
+
+                //load start activity
+                activityStart();
+            }
+
+        } else {
+            //load start activity
+            activityStart();
+        }
+    }
+
+
+    protected void activityLoading() {
+        curActivity = "loading";
+
+        Log.v("MainActivity", "activityLoading");
+
+        final View loadingLayout = (View) findViewById(R.id.start_layout);
+        viewFlipper.setDisplayedChild(viewFlipper.indexOfChild(loadingLayout));
+
+
+    }
 
     protected void activityDebug() {
         Intent intent = new Intent(this, DebugActivity.class);
@@ -137,11 +200,10 @@ public class MainActivity extends FragmentActivity {
     }
 
     protected void activityStart() {
-//        setContentView(R.layout.activity_start);
-//        setTitle(R.string.activity_main_title);
-
+        curActivity = "start";
 
         Log.v("MainActivity", "activityStart");
+
         final View startLayout = (View) findViewById(R.id.start_layout);
         viewFlipper.setDisplayedChild(viewFlipper.indexOfChild(startLayout));
 
@@ -181,11 +243,41 @@ public class MainActivity extends FragmentActivity {
         //disable
         startToggleNetwork.setEnabled(false);
 
+//        if (restricted) {
+//            lockSettings();
+//        } else {
+//            unlockSettings();
+//        }
+
+        final Button startButtonLog = (Button) findViewById(R.id.start_button_log);
+        startButtonLog.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+//                exportLog("app");
+                viewLog("app");
+            }
+        });
+
+        startButtonLog.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                shareLog("app");
+
+                return true;
+            }
+        });
+
+
+        //reset settings and load start
+        mSettings.clearSetting("role");
+        mSettings.clearSetting("activity");
+        mSettings.clearSetting("id");
+        mSettings.clearSetting("restricted");
+        mSettings.writeSettings();
+
     }
 
     protected void activityGenerate() {
-//        setContentView(R.layout.activity_qr_generate);
-//        setTitle(R.string.activity_main_title);
+        curActivity = "generate";
 
         Log.v("MainActivity", "activityGenerate");
         final View qrGenerateLayout = (View) findViewById(R.id.qr_generate_layout);
@@ -217,15 +309,14 @@ public class MainActivity extends FragmentActivity {
             public void onClick(View v) {
 
                 //load main activity
-                activityMain(true, 1);
+                activityMain(true, 1, true);
 
             }
         });
     }
 
     protected void activityScan() {
-//        setContentView(R.layout.activity_qr_scan);
-//        setTitle(R.string.activity_main_title);
+        curActivity = "scan";
 
         Log.v("MainActivity", "activityScan");
         final View qrScanLayout = (View) findViewById(R.id.qr_scan_layout);
@@ -245,7 +336,7 @@ public class MainActivity extends FragmentActivity {
                     int nodeId = Integer.parseInt(value);
 
                     //load main activity
-                    activityMain(false, nodeId);
+                    activityMain(false, nodeId, true);
                 }
             }
         });
@@ -260,9 +351,8 @@ public class MainActivity extends FragmentActivity {
     }
 
 
-    protected void activityMain(boolean master, int nodeId) {
-//        setContentView(R.layout.activity_main);
-//        setTitle(R.string.activity_main_title);
+    protected void activityMain(boolean master, final int nodeId, boolean autostart) {
+        curActivity = "main";
 
         Log.v("MainActivity", "activityMain");
         final View mainLayout = (View) findViewById(R.id.main_layout);
@@ -271,27 +361,92 @@ public class MainActivity extends FragmentActivity {
         TextView mainFieldClock = (TextView) findViewById(R.id.main_field_id);
         mainFieldClock.setText("Device " + String.valueOf(nodeId));
 
+        //read mode
+        boolean locked = Boolean.parseBoolean(mSettings.getSetting("locked", "false"));
 
         //bind buttons
         final Button mainButtonService = (Button) findViewById(R.id.main_button_service);
+        if (isRunning || autostart) {
+            mainButtonService.setText("Stop");
+        } else {
+            mainButtonService.setText("Start");
+        }
+
         mainButtonService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                if (isRunning) {
+                    // stop
+                    stopMainService();
+
+                    mainButtonService.setText("Start");
+
+//                    if (!restricted) {
+//                        //load start activity
+//                        activityStart();
+//                    }
+                } else {
+                    startMainService(Integer.toString(nodeId));
+                    mainButtonService.setText("Stop");
+                }
+            }
+        });
+
+        mainButtonService.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                //clear restricted flag, stop and go back
+                restricted = false;
                 // stop
                 stopMainService();
-
                 //load start activity
                 activityStart();
+                return true;
             }
         });
 
 //        //setup fragments
 //        setupFragments();
 
+        //save settings
+        mSettings.setSetting("role", (master ? "master" : "slave"));
+        mSettings.setSetting("id", Integer.toString(nodeId));
+        mSettings.setSetting("activity", "main");
+        mSettings.writeSettings();
+
         //start
-        startMainService(Integer.toString(nodeId));
+        if (autostart) {
+            startMainService(Integer.toString(nodeId));
+        }
 
 
     }
+
+    private void lockSettings() {
+        //bind buttons
+        final Button startButtonMaster = (Button) findViewById(R.id.start_button_master);
+
+        final Button startButtonSlave = (Button) findViewById(R.id.start_button_slave);
+
+        final Button startButtonDebug = (Button) findViewById(R.id.start_button_debug);
+        startButtonDebug.setEnabled(false);
+
+        final Switch startToggleNetwork = (Switch) findViewById(R.id.start_switch_network);
+        startToggleNetwork.setEnabled(false);
+    }
+
+    private void unlockSettings() {
+        //bind buttons
+        final Button startButtonMaster = (Button) findViewById(R.id.start_button_master);
+
+        final Button startButtonSlave = (Button) findViewById(R.id.start_button_slave);
+
+        final Button startButtonDebug = (Button) findViewById(R.id.start_button_debug);
+        startButtonDebug.setEnabled(true);
+
+        final Switch startToggleNetwork = (Switch) findViewById(R.id.start_switch_network);
+        startToggleNetwork.setEnabled(true);
+    }
+
 
     private void setupFragments() {
         FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
@@ -306,15 +461,23 @@ public class MainActivity extends FragmentActivity {
 
     @Override
     protected void onResume() {
+        Log.v("MainActivity", "onResume");
+
         super.onResume();
         // Register for the particular broadcast based on ACTION string
         IntentFilter filter = new IntentFilter(MessageKeys.DEST_ACTIVITY);
         LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, filter);
         // or `registerReceiver(testReceiver, filter)` for a normal broadcast
+
+        if(isRunning) {
+            sendMessage(MessageKeys.REQUIRE_UPDATE, null);
+        }
     }
 
     @Override
     protected void onPause() {
+        Log.v("MainActivity", "onPause");
+
         super.onPause();
         // Unregister the listener when the application is paused
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mReceiver);
@@ -350,13 +513,25 @@ public class MainActivity extends FragmentActivity {
                     Log.v("MainActivity", "receive update has nodes " + String.valueOf(hasNodes));
                     if (hasNodes) {
                         List<NetworkNode> nodes = (List) intent.getSerializableExtra("nodes");
+                        short clock = intent.getShortExtra("clock", (short) 0);
+
                         if (nodesFragment != null) {
-                            nodesFragment.updateItems(nodes);
+                            nodesFragment.updateItems(clock, nodes);
 //                        nodesFragment.viewAdapter.addAll(nodes);
 //                        //refresh
 //                        nodesFragment.viewAdapter.notifyDataSetChanged();
                         }
                     }
+                    break;
+
+                case MessageKeys.LOG_EXPORT:
+                    Log.v("MainActivity", "receive log");
+                    String path = intent.getStringExtra("path");
+                    if (!path.isEmpty()) {
+                        shareLog(path);
+                    }
+                    break;
+
 //                default:
 //                    String result = intent.getStringExtra("message");
 //                    Toast.makeText(MainActivity.this, result, Toast.LENGTH_SHORT).show();
@@ -371,6 +546,7 @@ public class MainActivity extends FragmentActivity {
     public void startMainService(String deviceId) {
         Log.v("MainActivity", "startService");
 
+        isRunning = true;
 
         //use ble
 //        String service = NetworkService.SERVICE_BLE;
@@ -396,6 +572,7 @@ public class MainActivity extends FragmentActivity {
 
     public void stopMainService() {
         Log.v("MainActivity", "stopService");
+        isRunning = false;
 
         sendMessage(MessageKeys.SERVICE_STOP, null);
     }
@@ -413,6 +590,60 @@ public class MainActivity extends FragmentActivity {
         sendMessage(MessageKeys.SIMULATOR_STOP, null);
     }
 
+    public void viewLog(String component) {
+        Log.v("MainActivity", "viewLog");
+
+
+        Intent intent = new Intent(this, LogActivity.class);
+        startActivity(intent);
+
+    }
+
+    public void exportLog(String component) {
+        Log.v("MainActivity", "exportLog");
+
+//        Bundle bundle = new Bundle();
+//        bundle.putString("component", component);
+//
+//        sendMessage(MessageKeys.LOG_EXPORT, bundle);
+
+//        String path = LogServiceUtil.getLogger(this).path(component);
+        File l = new File(this.getFilesDir(), "app.log");
+
+        Log.v("MainActivity", "exportLog file size " + String.valueOf(l.length()));
+
+        Uri contentUri = FileProvider.getUriForFile(this,
+                "it.unitn.android.directadvertisements.MainActivity", l);
+
+        Intent viewIntent = new Intent();
+        viewIntent.setAction(Intent.ACTION_VIEW);
+        viewIntent.setType("text/plain");
+//        viewIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+        viewIntent.setDataAndType(contentUri, "text/plain");
+        viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(Intent.createChooser(viewIntent, "Open with"));
+
+
+    }
+
+
+    public void shareLog(String component) {
+
+        String path = LogServiceUtil.getLogger(this).path(component);
+        File l = new File(path);
+
+        Uri contentUri = FileProvider.getUriForFile(this,
+                "it.unitn.android.directadvertisements.MainActivity", l);
+
+        Intent shareIntent = new Intent();
+        shareIntent.setAction(Intent.ACTION_SEND);
+        shareIntent.setType("text/plain");
+        shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(Intent.createChooser(shareIntent, "Share with"));
+
+
+    }
 
     public void qrGenerateRun(final ImageView qrCodeImage, final int nodeId) {
         final ProgressDialog progress = new ProgressDialog(this);
@@ -504,7 +735,7 @@ public class MainActivity extends FragmentActivity {
                     int nodeId = Integer.parseInt(value);
 
                     //load
-                    activityMain(false, nodeId);
+                    activityMain(false, nodeId, true);
                 }
             }
         } else {

@@ -232,10 +232,12 @@ public class DebugActivity extends FragmentActivity {
 
                     boolean hasNodes = intent.hasExtra("nodes");
                     Log.v("DebugActivity", "receive update has nodes " + String.valueOf(hasNodes));
+                    short clock = intent.getShortExtra("clock", (short) 0);
+
                     if (hasNodes) {
                         List<NetworkNode> nodes = (List) intent.getSerializableExtra("nodes");
                         if (nodesFragment != null) {
-                            nodesFragment.updateItems(nodes);
+                            nodesFragment.updateItems(clock ,nodes);
 //                        nodesFragment.viewAdapter.addAll(nodes);
 //                        //refresh
 //                        nodesFragment.viewAdapter.notifyDataSetChanged();

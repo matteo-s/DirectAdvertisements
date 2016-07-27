@@ -45,6 +45,7 @@ public class MessageKeys {
     public static final int NOTIFY_UPDATE = 23;
     public static final int NOTIFY_MESSAGE = 25;
     public static final int NOTIFY_ERROR = 29;
+    public static final int REQUIRE_UPDATE = 26;
 
 
     /*
@@ -81,5 +82,11 @@ public class MessageKeys {
     public static final int SIMULATOR_START = 51;
     public static final int SIMULATOR_STOP = 52;
     public static final int SIMULATOR_ERROR = 59;
+
+    /*
+    * Log
+     */
+    public static final int LOG_EXPORT = 61;
+    public static final int LOG_CLEAR = 62;
 
 }
