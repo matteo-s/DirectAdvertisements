@@ -14,7 +14,7 @@ import it.unitn.android.directadvertisements.network.NetworkMessage;
 
 public class BLENetworkMessage extends NetworkMessage {
 
-    public static final int SLOTS = 10;
+    public static final int SLOTS = 18;
 
     public BLENetworkMessage() {
         sender = 0;
@@ -29,7 +29,7 @@ public class BLENetworkMessage extends NetworkMessage {
     /**
      * Returns an AdvertiseData object which includes the Service UUID and Device Name.
      */
-    public AdvertiseData buildAdvertiseData() {
+    public AdvertiseData buildServiceData() {
 
         /**
          * Note: There is a strict limit of 31 Bytes on packets sent over BLE Advertisements.
@@ -41,8 +41,12 @@ public class BLENetworkMessage extends NetworkMessage {
          */
 
         AdvertiseData.Builder dataBuilder = new AdvertiseData.Builder();
-        dataBuilder.addServiceUuid(BLENetworkService.Service_UUID);
+        dataBuilder.setIncludeTxPowerLevel(true);
         dataBuilder.setIncludeDeviceName(false);
+
+        //disable service uuid, rely on manufacturer data
+//        dataBuilder.addServiceUuid(BLENetworkService.Service_UUID);
+
 
         /* For example - this will cause advertising to fail (exceeds size limit) */
         //String failureData = "asdghkajsghalkxcjhfa;sghtalksjcfhalskfjhasldkjfhdskf";
@@ -92,11 +96,142 @@ public class BLENetworkMessage extends NetworkMessage {
             k = k + 1;
         }
 
-        //build
+        //build on service data
         dataBuilder.addServiceData(BLENetworkService.Service_UUID, bytes);
-//        dataBuilder.addServiceData(BLENetworkService.Service_UUID, new byte[5]);
+        return dataBuilder.build();
+
+    }
+
+    /**
+     * Returns an AdvertiseData object which includes the Service UUID and Device Name.
+     */
+    public AdvertiseData buildManufacturerData() {
+
+        /**
+         * Note: There is a strict limit of 31 Bytes on packets sent over BLE Advertisements.
+         *  This includes everything put into AdvertiseData including UUIDs, device info, &
+         *  arbitrary service or manufacturer data.
+         *  Attempting to send packets over this limit will result in a failure with error code
+         *  AdvertiseCallback.ADVERTISE_FAILED_DATA_TOO_LARGE. Catch this error in the
+         *  onStartFailure() method of an AdvertiseCallback implementation.
+         */
+
+        AdvertiseData.Builder dataBuilder = new AdvertiseData.Builder();
+        dataBuilder.setIncludeTxPowerLevel(true);
+        dataBuilder.setIncludeDeviceName(false);
+
+        //build on manufacturer data - use 24 bytes
+        /*
+        * Structure of packet
+        *  | 0 1  | 2  | 3 --- 23 |
+        *  | UUID | id | clocks   |
+         */
+        int length = 2 + 1 + (1 * SLOTS);
+        byte[] bytes = new byte[length];
+
+        //use 2 bytes as identifier: D1AD = D1rect ADvertisement
+        bytes[0] = (byte) 0xD1; // Beacon Identifier
+        bytes[1] = (byte) 0xAD; // Beacon Identifier
+
+
+        //consider id as byte - limits to 127 ids
+        //could use masks to convert to 4 bytes
+//        data[0] = (byte) width;
+//        data[1] = (byte) (width >>> 8);
+//        data[2] = (byte) (width >>> 16);
+//        data[3] = (byte) (width >>> 24);
+        byte s = (byte) sender;
+
+        //add as 2
+        bytes[2] = s;
+
+
+        //store clock as 2 bytes - disabled due to space limit
+//        bytes[1] = (byte) clock;
+//        bytes[2] = (byte) (clock >>> 8);
+
+
+        //remaining space allocated to slots of 1 bytes
+        int k = 3;
+        for (int i = 1; i <= SLOTS; i++) {
+            short c = 0;
+            if (clocks.containsKey(i)) {
+                c = clocks.get(i);
+            }
+            //add sender
+            if (i == sender) {
+                c = clock;
+            }
+
+            //store as 1 bytes
+            //java byte is signed, need to read with mask at receive side
+            bytes[k] = (byte) c;
+
+            //increment
+            k = k + 1;
+        }
+
+        //add as manufacturer - id used is Google's one
+        dataBuilder.addManufacturerData(224, bytes);
         return dataBuilder.build();
     }
+
+    public byte[] buildTemplateData() {
+
+        //build on manufacturer data - use 24 bytes max
+        /*
+        * Structure of packet
+        *  | 0 1  | 2  | 3 --- 23 |
+        *  | UUID | id | clocks   |
+         */
+        int length = 2 + 1 + (1 * SLOTS);
+        byte[] bytes = new byte[length];
+
+        //use 2 bytes as identifier: D1AD = D1rect ADvertisement
+        bytes[0] = (byte) 0xD1; // Beacon Identifier
+        bytes[1] = (byte) 0xAD; // Beacon Identifier
+
+
+        //consider id as byte - limits to 127 ids
+        //could use masks to convert to 4 bytes
+//        data[0] = (byte) width;
+//        data[1] = (byte) (width >>> 8);
+//        data[2] = (byte) (width >>> 16);
+//        data[3] = (byte) (width >>> 24);
+        byte s = (byte) sender;
+
+        //add as 2
+        bytes[2] = s;
+
+
+        //store clock as 2 bytes - disabled due to space limit
+//        bytes[1] = (byte) clock;
+//        bytes[2] = (byte) (clock >>> 8);
+
+
+        //remaining space allocated to slots of 1 bytes
+        int k = 3;
+        for (int i = 1; i <= SLOTS; i++) {
+            short c = 0;
+            if (clocks.containsKey(i)) {
+                c = clocks.get(i);
+            }
+            //add sender
+            if (i == sender) {
+                c = clock;
+            }
+
+            //store as 1 bytes
+            //java byte is signed, need to read with mask at receive side
+            bytes[k] = (byte) c;
+
+            //increment
+            k = k + 1;
+        }
+
+        return bytes;
+    }
+
 //    /**
 //     * Returns an AdvertiseData object which includes the Service UUID and Device Name.
 //     */
@@ -187,7 +322,7 @@ public class BLENetworkMessage extends NetworkMessage {
 
     }
 
-    public static BLENetworkMessage parse(byte[] bytes) {
+    public static BLENetworkMessage parseServiceData(byte[] bytes) {
         BLENetworkMessage m = null;
 
         //check length
@@ -240,6 +375,57 @@ public class BLENetworkMessage extends NetworkMessage {
                 k = k + 1;
             }
 
+        }
+
+
+        //return
+        return m;
+
+    }
+
+
+    public static BLENetworkMessage parseManufacturerData(byte[] bytes) {
+        BLENetworkMessage m = null;
+
+      /*
+        * Structure of packet
+        *  | 0 1  | 2  | 3 --- 23 |
+        *  | UUID | id | clocks   |
+         */
+
+        //check length
+        int length = 2 + 1 + (1 * SLOTS);
+        if (bytes.length >= length) {
+            //create
+            m = new BLENetworkMessage();
+
+            //check service uuid
+            byte id0 = bytes[0];
+            byte id1 = bytes[1];
+
+            if (id0 == (byte) 0xD1 && id1 == (byte) 0xAD) {
+
+                //parse sender
+                m.sender = bytes[2];
+
+                //remaining space allocated to slots of 1 bytes
+                int k = 3;
+                for (int i = 1; (i <= SLOTS && k < bytes.length); i++) {
+                    //use mask because byte is signed
+                    short c = (short) (bytes[k] & 0xFF);
+                    //clock should be > 0 if real value
+                    if (c > 0) {
+                        m.clocks.put(i, c);
+
+                        if (i == m.sender) {
+                            m.clock = c;
+                        }
+                    }
+
+                    //increment
+                    k = k + 1;
+                }
+            }
         }
 
 

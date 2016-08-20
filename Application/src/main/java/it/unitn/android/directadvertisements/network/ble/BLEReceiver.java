@@ -16,16 +16,17 @@ import android.util.Log;
 import java.util.List;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.log.LogService;
 import it.unitn.android.directadvertisements.log.LogServiceUtil;
 
 public class BLEReceiver extends ScanCallback {
 
-    private Messenger mMessenger;
+    private ServiceConnector mService = null;
     private LogService mLogger;
 
-    public BLEReceiver(Messenger messenger) {
-        mMessenger = messenger;
+    public BLEReceiver(ServiceConnector serviceConnector) {
+        this.mService = serviceConnector;
         mLogger = LogServiceUtil.getLogger();
     }
 
@@ -41,16 +42,22 @@ public class BLEReceiver extends ScanCallback {
 
             ScanRecord record = result.getScanRecord();
             String address = result.getDevice().getAddress();
-            String name = result.getDevice().getName();
+            int rssi = result.getRssi();
+            //name not sent
+//            String name = result.getDevice().getName();
 
+            Log.v("BLEReceiver", "receive result from " + address + " rssi " + String.valueOf(rssi));
+
+
+            //check for service data
             if (record.getServiceData().containsKey(BLENetworkService.Service_UUID)) {
                 byte[] bytes = record.getServiceData(BLENetworkService.Service_UUID);
 
                 Log.v("BLEReceiver", "receive data from " + address + " data length " + String.valueOf(bytes.length) + " : " + BLENetworkMessage.byteArrayToString(bytes));
 
 
-                //get message from bytes
-                BLENetworkMessage n = BLENetworkMessage.parse(bytes);
+                //get message from service data bytes
+                BLENetworkMessage n = BLENetworkMessage.parseServiceData(bytes);
 
                 //set sender address
                 n.address = address;
@@ -70,16 +77,46 @@ public class BLEReceiver extends ScanCallback {
                 mLogger.info("ble", "received msg from " + address + " : " + vector.toString());
 
                 //directly send to service
-                Message msg = Message.obtain(null, MessageKeys.CLOCK_RECEIVE, 0, 0);
                 Bundle bundle = new Bundle();
                 bundle.putSerializable("n", n);
 
-                msg.setData(bundle);
-                try {
-                    mMessenger.send(msg);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
+                mService.sendMessage(MessageKeys.CLOCK_RECEIVE, bundle);
+            }
+
+            //check for manufacturer data
+            byte[] manufacturerData = record.getManufacturerSpecificData(224);
+            if (manufacturerData != null) {
+                byte[] bytes = manufacturerData;
+
+                Log.v("BLEReceiver", "receive data from " + address + " data length " + String.valueOf(bytes.length) + " : " + BLENetworkMessage.byteArrayToString(bytes));
+
+
+                //get message from service data bytes
+                BLENetworkMessage n = BLENetworkMessage.parseManufacturerData(bytes);
+
+                //set sender address
+                n.address = address;
+
+                StringBuilder vector = new StringBuilder();
+                for (int i = 1; i <= BLENetworkMessage.SLOTS; i++) {
+                    if (n.clocks.containsKey(i)) {
+                        vector.append(Short.toString(n.clocks.get(i)));
+                    } else {
+                        vector.append("0");
+                    }
                 }
+
+                Log.v("BLEReceiver", "received msg from " + address + " : " + vector.toString());
+
+                //log to file
+                mLogger.info("ble", "received msg from " + address + " : " + vector.toString());
+
+                //directly send to service
+                Bundle bundle = new Bundle();
+                bundle.putSerializable("n", n);
+
+                mService.sendMessage(MessageKeys.CLOCK_RECEIVE, bundle);
+
             }
 
 
@@ -102,20 +139,4 @@ public class BLEReceiver extends ScanCallback {
     }
 
 
-    protected void sendMessage(int key, Bundle bundle) {
-        if (mMessenger != null) {
-            Message msg = Message.obtain(null, key, 0, 0);
-
-            // Set the bundle data to the Message
-            if (bundle != null) {
-                msg.setData(bundle);
-            }
-            // Send the Message to the Service (in another process)
-            try {
-                mMessenger.send(msg);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 }

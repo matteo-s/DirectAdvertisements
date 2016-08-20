@@ -43,6 +43,7 @@ import com.google.zxing.integration.android.IntentResult;
 import java.io.File;
 import java.util.List;
 
+import it.unitn.android.directadvertisements.app.ActionKeys;
 import it.unitn.android.directadvertisements.app.MainService;
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.app.NodesFragment;
@@ -80,7 +81,10 @@ public class MainActivity extends FragmentActivity {
 
             //check if loading activity, then move to start
             if (curActivity.equals("loading")) {
-                activityDispatch();
+//                activityDispatch();
+                //require update from service
+                refreshMainService();
+
             }
         }
 
@@ -96,7 +100,6 @@ public class MainActivity extends FragmentActivity {
     protected void sendMessage(int key, Bundle bundle) {
         if (isBound) {
             // Create a Message
-            // Note the usage of MSG_SAY_HELLO as the what value
             Message msg = Message.obtain(null, key, 0, 0);
 
 //        // Create a bundle with the data
@@ -115,6 +118,24 @@ public class MainActivity extends FragmentActivity {
             }
         }
     }
+//    //use intents
+//    protected void sendMessage(int key, Bundle bundle) {
+//        Intent i = new Intent(this, MainService.class);
+//        if (key == MessageKeys.SERVICE_START) {
+//            i.setAction(ActionKeys.ACTION_START);
+//            final String network = (String) bundle.get("network");
+//            final String deviceId = (String) bundle.get("deviceId");
+//            i.putExtra("network", network);
+//            i.putExtra("deviceId", deviceId);
+//
+//
+//        } else if (key == MessageKeys.SERVICE_STOP) {
+//            i.setAction(ActionKeys.ACTION_STOP);
+//        }
+//
+//        startService(i);
+//    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -125,9 +146,10 @@ public class MainActivity extends FragmentActivity {
         Log.v("MainActivity", "onCreate");
 
         Intent i = new Intent(this, MainService.class);
-        bindService(i, serviceConnection, Context.BIND_AUTO_CREATE);
         // Start the service
         startService(i);
+        //bind service
+        bindService(i, serviceConnection, Context.BIND_AUTO_CREATE);
 
 
         viewFlipper = (ViewFlipper) findViewById(R.id.viewflipper);
@@ -144,14 +166,30 @@ public class MainActivity extends FragmentActivity {
 
         //load activity
         activityLoading();
-
     }
 
+    @Override
+    protected void onDestroy() {
+
+        //kill service if not active
+        if (!isRunning && isBound) {
+            sendMessage(MessageKeys.SERVICE_CLOSE, null);
+        }
+
+        if (isBound) {
+            unbindService(serviceConnection);
+            isBound = false;
+        }
+
+        super.onDestroy();
+    }
 
     protected void activityDispatch() {
         //check activity from settings
         String previous = mSettings.getSetting("activity", "loading");
         restricted = Boolean.parseBoolean(mSettings.getSetting("restricted", "false"));
+
+        Log.v("MainService", "previous activity " + previous);
 
         //check if previous run
         if (previous.equals("main")) {
@@ -164,7 +202,7 @@ public class MainActivity extends FragmentActivity {
                 mSettings.setSetting("restricted", Boolean.toString(restricted));
                 mSettings.writeSettings();
 
-                activityMain(role.equals("master"), id, true);
+                activityMain((id == 1), id, false);
             } else {
                 //reset settings and load start
                 mSettings.clearSetting("role");
@@ -366,7 +404,7 @@ public class MainActivity extends FragmentActivity {
 
         //bind buttons
         final Button mainButtonService = (Button) findViewById(R.id.main_button_service);
-        if (isRunning || autostart) {
+        if (isRunning) {
             mainButtonService.setText("Stop");
         } else {
             mainButtonService.setText("Start");
@@ -378,7 +416,7 @@ public class MainActivity extends FragmentActivity {
                     // stop
                     stopMainService();
 
-                    mainButtonService.setText("Start");
+//                    mainButtonService.setText("Start");
 
 //                    if (!restricted) {
 //                        //load start activity
@@ -386,7 +424,7 @@ public class MainActivity extends FragmentActivity {
 //                    }
                 } else {
                     startMainService(Integer.toString(nodeId));
-                    mainButtonService.setText("Stop");
+//                    mainButtonService.setText("Stop");
                 }
             }
         });
@@ -469,7 +507,7 @@ public class MainActivity extends FragmentActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(mReceiver, filter);
         // or `registerReceiver(testReceiver, filter)` for a normal broadcast
 
-        if(isRunning) {
+        if (isRunning) {
             sendMessage(MessageKeys.REQUIRE_UPDATE, null);
         }
     }
@@ -489,6 +527,7 @@ public class MainActivity extends FragmentActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             int type = intent.getIntExtra("type", MessageKeys.NOTIFY_MESSAGE);
+            final Button mainButtonService = (Button) findViewById(R.id.main_button_service);
 
             switch (type) {
                 case MessageKeys.CLOCK_INCREMENT:
@@ -514,6 +553,8 @@ public class MainActivity extends FragmentActivity {
                     if (hasNodes) {
                         List<NetworkNode> nodes = (List) intent.getSerializableExtra("nodes");
                         short clock = intent.getShortExtra("clock", (short) 0);
+                        TextView fieldClock = (TextView) findViewById(R.id.main_field_clock);
+                        fieldClock.setText("clock " + String.valueOf(clock));
 
                         if (nodesFragment != null) {
                             nodesFragment.updateItems(clock, nodes);
@@ -532,6 +573,38 @@ public class MainActivity extends FragmentActivity {
                     }
                     break;
 
+                case MessageKeys.SERVICE_START:
+                    Log.v("MainActivity", "receive start");
+                    isRunning = true;
+                    mainButtonService.setText("Stop");
+                    break;
+                case MessageKeys.SERVICE_STOP:
+                    Log.v("MainActivity", "receive stop");
+                    isRunning = false;
+                    mainButtonService.setText("Start");
+                    break;
+                case MessageKeys.SERVICE_STATUS:
+                    Log.v("MainActivity", "receive status");
+                    isRunning = intent.getBooleanExtra("status", false);
+                    String network = intent.getStringExtra("network");
+                    int id = intent.getIntExtra("id", 0);
+                    if (isRunning) {
+                        mainButtonService.setText("Stop");
+                    } else {
+                        mainButtonService.setText("Start");
+                    }
+
+                    //check if loading activity, then move to start
+                    if (curActivity.equals("loading")) {
+                        if (isRunning) {
+                            activityMain((id == 0), id, false);
+                            sendMessage(MessageKeys.REQUIRE_UPDATE, null);
+
+                        } else {
+                            activityDispatch();
+                        }
+                    }
+                    break;
 //                default:
 //                    String result = intent.getStringExtra("message");
 //                    Toast.makeText(MainActivity.this, result, Toast.LENGTH_SHORT).show();
@@ -542,11 +615,22 @@ public class MainActivity extends FragmentActivity {
         }
     };
 
+    public void refreshMainService() {
+        Log.v("MainActivity", "refreshService");
+        sendMessage(MessageKeys.SERVICE_STATUS, null);
+    }
 
     public void startMainService(String deviceId) {
         Log.v("MainActivity", "startService");
 
-        isRunning = true;
+
+//        Intent i = new Intent(this, MainService.class);
+//        bindService(i, serviceConnection, Context.BIND_AUTO_CREATE);
+//        // Start the service
+//        startService(i);
+
+
+//        isRunning = true;
 
         //use ble
 //        String service = NetworkService.SERVICE_BLE;
@@ -575,20 +659,25 @@ public class MainActivity extends FragmentActivity {
         isRunning = false;
 
         sendMessage(MessageKeys.SERVICE_STOP, null);
+
+//        //unbind
+//        unbindService(serviceConnection);
+
+
     }
 
-
-    public void startSimulator() {
-        Log.v("MainActivity", "startSimulator");
-
-        sendMessage(MessageKeys.SIMULATOR_START, null);
-    }
-
-    public void stopSimulator() {
-        Log.v("MainActivity", "stopSimulator");
-
-        sendMessage(MessageKeys.SIMULATOR_STOP, null);
-    }
+//
+//    public void startSimulator() {
+//        Log.v("MainActivity", "startSimulator");
+//
+//        sendMessage(MessageKeys.SIMULATOR_START, null);
+//    }
+//
+//    public void stopSimulator() {
+//        Log.v("MainActivity", "stopSimulator");
+//
+//        sendMessage(MessageKeys.SIMULATOR_STOP, null);
+//    }
 
     public void viewLog(String component) {
         Log.v("MainActivity", "viewLog");

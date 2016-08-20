@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Random;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
@@ -92,7 +93,7 @@ public class WifiNetworkService implements NetworkService {
     * Context
      */
     private Context mContext;
-    private Messenger mMessenger;
+    private ServiceConnector mService = null;
     private Handler mHandler;
 
     /*
@@ -111,13 +112,12 @@ public class WifiNetworkService implements NetworkService {
     private WifiNetworkMessage mMessage;
 
 
-    boolean isBound = false;
     boolean isActive = false;
     boolean hasPending = false;
     boolean hasConnection = false;
 
 
-    public WifiNetworkService(Context context, IBinder binder) {
+    public WifiNetworkService(Context context, ServiceConnector serviceConnector) {
         this.mManager = null;
         this.mChannel = null;
         this.mReceiver = null;
@@ -127,8 +127,8 @@ public class WifiNetworkService implements NetworkService {
         this.mMessage = null;
 
         this.mContext = context;
-        this.mMessenger = new Messenger(binder);
-        this.isBound = true;
+        this.mService = serviceConnector;
+
 
         //create an handler for delayed tasks
         mHandler = new Handler();
@@ -174,17 +174,19 @@ public class WifiNetworkService implements NetworkService {
         deactivate();
 
         // unbind or process might have crashes
-        mMessenger = null;
-        isBound = false;
+        mService.unbindService();
     }
 
     @Override
     public void activate() {
+        //bind
+        mService.bindService();
+
         if (mReceiver == null) {
             //create
             if (MODE_ACTIVE) {
 
-                mReceiver = new WifiReceiver(mManager, mChannel, mMessenger, MODE_ACTIVE, new WifiP2pManager.ActionListener() {
+                mReceiver = new WifiReceiver(mManager, mChannel, mService, MODE_ACTIVE, new WifiP2pManager.ActionListener() {
 
                     @Override
                     public void onSuccess() {
@@ -224,7 +226,7 @@ public class WifiNetworkService implements NetworkService {
                     }
                 });
             } else {
-                mReceiver = new WifiReceiver(mManager, mChannel, mMessenger);
+                mReceiver = new WifiReceiver(mManager, mChannel, mService);
             }
         }
 
@@ -242,13 +244,13 @@ public class WifiNetworkService implements NetworkService {
         //start advertiser
         if (mAdvertiser == null) {
             //create
-            mAdvertiser = new WifiAdvertiser(mManager, mChannel, mMessenger);
+            mAdvertiser = new WifiAdvertiser(mManager, mChannel, mService);
 
         }
 
         if (mDiscovery == null) {
             //create
-            mDiscovery = new WifiDiscovery(mManager, mChannel, mMessenger);
+            mDiscovery = new WifiDiscovery(mManager, mChannel, mService);
 
         }
 
@@ -298,7 +300,7 @@ public class WifiNetworkService implements NetworkService {
             ADAPTIVE_PERIOD = 0;
         }
 
-        sendMessage(MessageKeys.NETWORK_START, null);
+        mService.sendMessage(MessageKeys.NETWORK_START, null);
     }
 
     @Override
@@ -326,7 +328,10 @@ public class WifiNetworkService implements NetworkService {
         hasPending = false;
         hasConnection = false;
 
-        sendMessage(MessageKeys.NETWORK_STOP, null);
+        mService.sendMessage(MessageKeys.NETWORK_STOP, null);
+
+        // unbind
+        mService.unbindService();
     }
 
 
@@ -859,28 +864,6 @@ public class WifiNetworkService implements NetworkService {
     public int getAdaptiveDuration() {
         int duration = ADAPTIVE_STEP;
         return duration;
-    }
-
-
-    /*
-    * Helper - message
-     */
-
-    protected void sendMessage(int key, Bundle bundle) {
-        if (isBound) {
-            Message msg = Message.obtain(null, key, 0, 0);
-
-            // Set the bundle data to the Message
-            if (bundle != null) {
-                msg.setData(bundle);
-            }
-            // Send the Message to the Service (in another process)
-            try {
-                mMessenger.send(msg);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
 

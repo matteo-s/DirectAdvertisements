@@ -7,24 +7,22 @@ package it.unitn.android.directadvertisements.clocks;
 import android.content.Context;
 import android.os.IBinder;
 
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.clocks.local.LocalClockService;
 
-public class ClockServiceUtil {
+public class ClockServiceFactory {
 
-    private static ClockService _service;
-
-
-    public static ClockService getService(Context context, IBinder binder) {
-        if (_service == null) {
-            _service = new LocalClockService(context, binder);
-        }
-        return _service;
+    //    private static ClockService _service;
+//
+//
+    public static ClockService getService(Context context) {
+        return new LocalClockService(context, new ServiceConnector(context));
     }
-
-    public static ClockService getService() {
-
-        return _service;
-    }
+//
+//    public static ClockService getService() {
+//
+//        return _service;
+//    }
     /*
     * Clock
      */

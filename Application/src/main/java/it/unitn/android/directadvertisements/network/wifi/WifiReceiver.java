@@ -25,11 +25,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 
 public class WifiReceiver extends BroadcastReceiver {
+
+    private ServiceConnector mService = null;
+
+
     private WifiP2pManager mManager;
     private Channel mChannel;
-    private Messenger mMessenger;
     private WifiPeerListener mPeerListener;
     private WifiInfoListener mInfoListener;
     private WifiP2pDevice mDevice;
@@ -38,10 +42,12 @@ public class WifiReceiver extends BroadcastReceiver {
     boolean activeMode = false;
     private WifiP2pManager.ActionListener mListener;
 
-    public WifiReceiver(WifiP2pManager manager, Channel channel, Messenger messenger) {
+    public WifiReceiver(WifiP2pManager manager, Channel channel, ServiceConnector serviceConnector) {
         mManager = manager;
         mChannel = channel;
-        mMessenger = messenger;
+
+        mService = serviceConnector;
+
         mPeerListener = new WifiPeerListener();
         mInfoListener = new WifiInfoListener();
         mDevice = null;
@@ -52,10 +58,12 @@ public class WifiReceiver extends BroadcastReceiver {
     }
 
 
-    public WifiReceiver(WifiP2pManager manager, Channel channel, Messenger messenger, boolean active, WifiP2pManager.ActionListener listener) {
+    public WifiReceiver(WifiP2pManager manager, Channel channel, ServiceConnector serviceConnector, boolean active, WifiP2pManager.ActionListener listener) {
         mManager = manager;
         mChannel = channel;
-        mMessenger = messenger;
+
+        mService = serviceConnector;
+
         mPeerListener = new WifiPeerListener();
         mInfoListener = new WifiInfoListener();
         mDevice = null;
@@ -91,12 +99,12 @@ public class WifiReceiver extends BroadcastReceiver {
 
             if (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED) {
                 // Wifi P2P is enabled
-                sendMessage(MessageKeys.NETWORK_ACTIVE, null);
+                mService.sendMessage(MessageKeys.NETWORK_ACTIVE, null);
 
 
             } else {
                 // Wi-Fi P2P is not enabled
-                sendMessage(MessageKeys.NETWORK_INACTIVE, null);
+                mService.sendMessage(MessageKeys.NETWORK_INACTIVE, null);
 
             }
 
@@ -134,26 +142,9 @@ public class WifiReceiver extends BroadcastReceiver {
                     WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
 
             //send message
-            sendMessage(MessageKeys.NETWORK_INFO, null);
+            mService.sendMessage(MessageKeys.NETWORK_INFO, null);
 
 
-        }
-    }
-
-    protected void sendMessage(int key, Bundle bundle) {
-        if (mMessenger != null) {
-            Message msg = Message.obtain(null, key, 0, 0);
-
-            // Set the bundle data to the Message
-            if (bundle != null) {
-                msg.setData(bundle);
-            }
-            // Send the Message to the Service (in another process)
-            try {
-                mMessenger.send(msg);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -175,7 +166,7 @@ public class WifiReceiver extends BroadcastReceiver {
                     //send message to trigger inquiry on peer
                     Bundle bundle = new Bundle();
                     bundle.putSerializable("a", address);
-                    sendMessage(MessageKeys.CLOCK_INQUIRY, bundle);
+                    mService.sendMessage(MessageKeys.CLOCK_INQUIRY, bundle);
                 }
             }
 

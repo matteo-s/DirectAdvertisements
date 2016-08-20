@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.registry.NetworkRegistryUtil;
@@ -28,18 +29,19 @@ import it.unitn.android.directadvertisements.registry.NetworkRegistryUtil;
 public class WifiDiscovery {
     private WifiP2pManager mManager;
     private WifiP2pManager.Channel mChannel;
-    private Messenger mMessenger;
 
     private boolean isActive = false;
     private Handler mHandler;
+    private ServiceConnector mService = null;
+
     private DnsSdServiceResponseListener mResponseListener;
     private DnsSdTxtRecordListener mTxtListener;
     private WifiP2pDnsSdServiceRequest mServiceRequest;
 
-    public WifiDiscovery(WifiP2pManager manager, WifiP2pManager.Channel channel, Messenger messenger) {
+    public WifiDiscovery(WifiP2pManager manager, WifiP2pManager.Channel channel, ServiceConnector serviceConnector) {
         mManager = manager;
         mChannel = channel;
-        mMessenger = messenger;
+        mService = serviceConnector;
         mResponseListener = new DnsSdServiceResponseListener() {
 
             @Override
@@ -95,16 +97,10 @@ public class WifiDiscovery {
                 n.address = address;
 
                 //directly send to service
-                Message msg = Message.obtain(null, MessageKeys.CLOCK_RECEIVE, 0, 0);
                 Bundle bundle = new Bundle();
                 bundle.putSerializable("n", n);
 
-                msg.setData(bundle);
-                try {
-                    mMessenger.send(msg);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
+                mService.sendMessage(MessageKeys.CLOCK_RECEIVE, bundle);
 
             }
         };

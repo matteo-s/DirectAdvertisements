@@ -33,6 +33,7 @@ public class MessageKeys {
     public static final int SERVICE_START = 11;
     public static final int SERVICE_STOP = 12;
     public static final int SERVICE_CLOSE = 13;
+    public static final int SERVICE_STATUS = 14;
     public static final int SERVICE_ERROR = 19;
 
     

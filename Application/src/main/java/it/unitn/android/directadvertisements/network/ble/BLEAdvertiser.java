@@ -15,6 +15,8 @@ import android.os.Messenger;
 import android.util.Log;
 import android.util.SparseArray;
 
+import it.unitn.android.directadvertisements.app.ServiceConnector;
+
 
 public class BLEAdvertiser {
 
@@ -24,15 +26,15 @@ public class BLEAdvertiser {
     private AdvertiseSettings mSettings;
     private AdvertiseCallback mCallback;
 
-    private Messenger mMessenger;
 
     private boolean isActive = false;
     private Handler mHandler;
+    private ServiceConnector mService = null;
 
 
-    public BLEAdvertiser(BluetoothAdapter adapter, Messenger messenger) {
+    public BLEAdvertiser(BluetoothAdapter adapter,  ServiceConnector serviceConnector) {
         mAdapter = adapter;
-        mMessenger = messenger;
+        mService = serviceConnector;
 
         //create an handler for delayed tasks
         mHandler = new Handler();
@@ -86,17 +88,23 @@ public class BLEAdvertiser {
             });
         } else {
 
-            final AdvertiseData advertiseData = m.buildAdvertiseData();
+            //use service data
+//            final AdvertiseData advertiseData = m.buildServiceData();
+
+            //use manufacturer data
+            final AdvertiseData advertiseData = m.buildManufacturerData();
 
             byte[] bytes = advertiseData.getServiceData().get(BLENetworkService.Service_UUID);
-
-            Log.v("BLEAdvertiser", "advertise data length " + String.valueOf(bytes.length) + ": " + BLENetworkMessage.byteArrayToString(bytes));
+            if (bytes != null) {
+                Log.v("BLEAdvertiser", "service data length " + String.valueOf(bytes.length) + ": " + BLENetworkMessage.byteArrayToString(bytes));
+            }
             SparseArray<byte[]> manufacturer = advertiseData.getManufacturerSpecificData();
 
             for (int q = 0; q < manufacturer.size(); q++) {
                 byte[] mata = manufacturer.get(q);
-                Log.v("BLEAdvertiser", "manufacturer data length " + String.valueOf(mata.length) + ": " + BLENetworkMessage.byteArrayToString(mata));
-
+                if (mata != null) {
+                    Log.v("BLEAdvertiser", "manufacturer data " + String.valueOf(q) + " length " + String.valueOf(mata.length) + ": " + BLENetworkMessage.byteArrayToString(mata));
+                }
             }
 
             StringBuilder vector = new StringBuilder();
@@ -171,7 +179,8 @@ public class BLEAdvertiser {
      */
     public AdvertiseSettings buildAdvertiseSettings() {
         AdvertiseSettings.Builder settingsBuilder = new AdvertiseSettings.Builder();
-        settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY);
+        settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER);
+//        settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY);
         settingsBuilder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM);
         settingsBuilder.setConnectable(false);
         settingsBuilder.setTimeout(BLENetworkService.ADVERTISE_DURATION);

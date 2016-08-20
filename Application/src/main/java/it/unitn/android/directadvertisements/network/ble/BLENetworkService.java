@@ -20,6 +20,7 @@ import android.util.Log;
 import java.util.Random;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
@@ -34,14 +35,18 @@ public class BLENetworkService implements NetworkService {
             .fromString("0000b81d-0000-1000-8000-00805f9b34fb");
 
     public static final int ADVERTISE_DURATION = 5000;
-    public static final int SCAN_DURATION = 3000;
+    public static final int ADVERTISE_PAUSE = 5000;
+
+    public static final int SCAN_DURATION = 29000;
+    public static final int SCAN_PAUSE = 1000;
+
     public static final int SLEEP_DURATION = 1000;
 
     /*
 * Context
  */
     private Context mContext;
-    private Messenger mMessenger;
+    private ServiceConnector mService = null;
     private Handler mHandler;
 
     /*
@@ -62,14 +67,22 @@ public class BLENetworkService implements NetworkService {
      */
 
 
-    boolean isBound = false;
     boolean isActive = false;
-    boolean hasPending = false;
     boolean hasConnection = false;
-    boolean hasLooper = false;
 
+//    boolean hasPending = false;
+//    boolean hasLooper = false;
 
-    public BLENetworkService(Context context, IBinder binder) {
+    boolean hasCyclePending = false;
+    boolean hasCycleLooper = false;
+
+    boolean hasAdvertisePending = false;
+    boolean hasAdvertiseLooper = false;
+
+    boolean hasDiscoveryPending = false;
+    boolean hasDiscoveryLooper = false;
+
+    public BLENetworkService(Context context, ServiceConnector serviceConnector) {
         mAdapter = null;
         isAvailable = false;
         isSupported = false;
@@ -77,8 +90,7 @@ public class BLENetworkService implements NetworkService {
         this.mMessage = null;
 
         this.mContext = context;
-        this.mMessenger = new Messenger(binder);
-        this.isBound = true;
+        this.mService = serviceConnector;
 
         //create an handler for delayed tasks
         mHandler = new Handler();
@@ -143,47 +155,48 @@ public class BLENetworkService implements NetworkService {
         deactivate();
 
         // unbind or process might have crashes
-        mMessenger = null;
-        isBound = false;
+        mService.unbindService();
 
 
     }
 
     @Override
     public void activate() {
+        //bind
+        mService.bindService();
 
         //start scanner
         if (mScanner == null) {
-            mScanner = new BLEScanner(mAdapter, mMessenger);
+            mScanner = new BLEScanner(mAdapter, mService);
         }
 
         //start advertiser
         if (mAdvertiser == null) {
             //create
-            mAdvertiser = new BLEAdvertiser(mAdapter, mMessenger);
+            mAdvertiser = new BLEAdvertiser(mAdapter, mService);
 
         }
 
         //send message
-        sendMessage(MessageKeys.NETWORK_INFO, null);
+        mService.sendMessage(MessageKeys.NETWORK_INFO, null);
 
         //start indefinitely
         isActive = true;
 
-        //start one-shot discovery
-        discovery(new ActionListener() {
-            @Override
-            public void onSuccess() {
-            }
+//        //start one-shot discovery
+//        discovery(new ActionListener() {
+//            @Override
+//            public void onSuccess() {
+//            }
+//
+//            @Override
+//            public void onFailure(int error) {
+//            }
+//        });
 
-            @Override
-            public void onFailure(int error) {
-            }
-        });
 
-
-//        //start discovery looper
-//        discoveryLooper();
+        //start discovery looper
+        discoveryLooper();
     }
 
     @Override
@@ -200,14 +213,23 @@ public class BLENetworkService implements NetworkService {
         //set inactive
         isActive = false;
 
-        //stop looper
-        hasLooper = false;
+        //stop loopers
+        hasCycleLooper = false;
+        hasAdvertiseLooper = false;
+        hasDiscoveryLooper = false;
 
         //clear status
-        hasPending = false;
+        hasCyclePending = false;
+        hasAdvertisePending = false;
+        hasDiscoveryPending = false;
+
+
         hasConnection = false;
 
-        sendMessage(MessageKeys.NETWORK_STOP, null);
+        mService.sendMessage(MessageKeys.NETWORK_STOP, null);
+
+        // unbind
+        mService.unbindService();
     }
 
 
@@ -236,10 +258,30 @@ public class BLENetworkService implements NetworkService {
             //start broadcasting indefinitely
             isActive = true;
         }
-        advertiseAndDiscoveryLooper(true);
+//        advertiseAndDiscoveryLooper(true);
 //        advertiseLooper();
 
+        //stop if active
+        if (hasAdvertisePending) {
+            //stop, let active looper restart with new msg
+            mAdvertiser.stop(new ActionListener() {
+                @Override
+                public void onSuccess() {
+                    if (!hasAdvertiseLooper) {
+                        advertiseLooper();
+                    }
+                }
 
+                @Override
+                public void onFailure(int error) {
+                }
+            });
+        } else {
+            //check for looper, maybe is sleeping
+            if (!hasAdvertiseLooper) {
+                advertiseLooper();
+            }
+        }
     }
 
     /*
@@ -307,17 +349,17 @@ public class BLENetworkService implements NetworkService {
     * Network
      */
     private void advertiseAndDiscoveryLooper(boolean check) {
-        Log.v("BLENetworkService", "advertiseAndDiscoveryLooper hasPending " + String.valueOf(hasPending) + " hasLooper " + String.valueOf(hasLooper));
+        Log.v("BLENetworkService", "advertiseAndDiscoveryLooper hasPending " + String.valueOf(hasCyclePending) + " hasLooper " + String.valueOf(hasCycleLooper));
 
-        if (isActive && (!hasLooper || !check)) {
-            hasLooper = true;
+        if (isActive && (!hasCycleLooper || !check)) {
+            hasCycleLooper = true;
 
             advertiseAndDiscovery(new ActionListener() {
                 @Override
                 public void onSuccess() {
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                    int delay = rand.nextInt((SLEEP_DURATION - 1) + 1) + SLEEP_DURATION;
                     Log.v("BLENetworkService", "advertiseAndDiscoveryLooper onSuccess sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
@@ -333,7 +375,7 @@ public class BLENetworkService implements NetworkService {
                 public void onFailure(int error) {
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = 2 * (rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION);
+                    int delay = 2 * (rand.nextInt((SLEEP_DURATION - 1) + 1) + SLEEP_DURATION);
                     Log.v("BLENetworkService", "advertiseAndDiscoveryLooper onFailure error " + String.valueOf(error) + " sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
@@ -350,9 +392,10 @@ public class BLENetworkService implements NetworkService {
     }
 
     private void advertiseAndDiscovery(final ActionListener listener) {
-        Log.v("BLENetworkService", "advertiseAndDiscovery hasPending " + String.valueOf(hasPending));
-        if (!hasPending) {
-            hasPending = true;
+        Log.v("BLENetworkService", "advertiseAndDiscovery hasPending " + String.valueOf(hasCyclePending));
+
+        if (!hasCyclePending) {
+            hasCyclePending = true;
 
             //start advertiser
             mAdvertiser.advertise(mMessage, ADVERTISE_DURATION, new ActionListener() {
@@ -365,7 +408,7 @@ public class BLENetworkService implements NetworkService {
                     mScanner.scan(SCAN_DURATION, new ActionListener() {
                         @Override
                         public void onSuccess() {
-                            hasPending = false;
+                            hasCyclePending = false;
 
                             Log.v("BLENetworkService", "advertiseAndDiscovery discovery onSuccess");
 
@@ -375,7 +418,7 @@ public class BLENetworkService implements NetworkService {
 
                         @Override
                         public void onFailure(int error) {
-                            hasPending = false;
+                            hasCyclePending = false;
                             Log.v("BLENetworkService", "advertiseAndDiscovery discovery onFailure error " + String.valueOf(error));
 
                             //callback
@@ -387,7 +430,7 @@ public class BLENetworkService implements NetworkService {
 
                 @Override
                 public void onFailure(int error) {
-                    hasPending = false;
+                    hasCyclePending = false;
                     Log.v("BLENetworkService", "advertiseAndDiscovery onFailure error " + String.valueOf(error));
 
                     //callback
@@ -418,15 +461,17 @@ public class BLENetworkService implements NetworkService {
     private void advertiseLooper() {
         Log.v("BLENetworkService", "advertiseLooper");
 
-        if (isActive && !hasLooper) {
-            hasLooper = true;
+        if (isActive && !hasAdvertiseLooper) {
+            hasAdvertiseLooper = true;
 
             advertise(new ActionListener() {
                 @Override
                 public void onSuccess() {
+                    hasAdvertiseLooper = false;
+
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                    int delay = rand.nextInt((SLEEP_DURATION - 1) + 1) + ADVERTISE_PAUSE;
                     Log.v("BLENetworkService", "advertiseLooper onSuccess sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
@@ -440,9 +485,11 @@ public class BLENetworkService implements NetworkService {
 
                 @Override
                 public void onFailure(int error) {
+                    hasAdvertiseLooper = false;
+
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = 2 * (rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION);
+                    int delay = 2 * (rand.nextInt((SLEEP_DURATION - 1) + 1) + ADVERTISE_PAUSE);
                     Log.v("BLENetworkService", "advertiseLooper onFailure error " + String.valueOf(error) + " sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
@@ -459,15 +506,16 @@ public class BLENetworkService implements NetworkService {
     }
 
     private void advertise(final ActionListener listener) {
-        Log.v("BLENetworkService", "advertise hasPending " + String.valueOf(hasPending));
-        if (!hasPending) {
-            hasPending = true;
+        Log.v("BLENetworkService", "advertise hasPending " + String.valueOf(hasAdvertisePending));
+
+        if (!hasAdvertisePending) {
+            hasAdvertisePending = true;
 
             //start advertiser
             mAdvertiser.advertise(mMessage, ADVERTISE_DURATION, new ActionListener() {
                 @Override
                 public void onSuccess() {
-                    hasPending = false;
+                    hasAdvertisePending = false;
 
                     Log.v("BLENetworkService", "advertise onSuccess");
                     listener.onSuccess();
@@ -475,7 +523,7 @@ public class BLENetworkService implements NetworkService {
 
                 @Override
                 public void onFailure(int error) {
-                    hasPending = false;
+                    hasAdvertisePending = false;
                     Log.v("BLENetworkService", "advertise onFailure error " + String.valueOf(error));
 
                     //callback
@@ -492,13 +540,17 @@ public class BLENetworkService implements NetworkService {
     private void discoveryLooper() {
         Log.v("BLENetworkService", "discoveryLooper");
 
-        if (isActive) {
+        if (isActive && !hasDiscoveryLooper) {
+            hasDiscoveryLooper = true;
+
             discovery(new ActionListener() {
                 @Override
                 public void onSuccess() {
+                    hasDiscoveryLooper = false;
+
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION;
+                    int delay = rand.nextInt((SLEEP_DURATION - 1) + 1) + SCAN_PAUSE;
                     Log.v("BLENetworkService", "discoveryLooper onSuccess sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
@@ -512,9 +564,11 @@ public class BLENetworkService implements NetworkService {
 
                 @Override
                 public void onFailure(int error) {
+                    hasDiscoveryLooper = false;
+
                     //call again after random sleep
                     Random rand = new Random();
-                    int delay = 2 * (rand.nextInt((SLEEP_DURATION - SLEEP_DURATION) + 1) + SLEEP_DURATION);
+                    int delay = 2 * (rand.nextInt((SLEEP_DURATION - 1) + 1) + SCAN_PAUSE);
                     Log.v("BLENetworkService", "discoveryLooper onFailure error " + String.valueOf(error) + " sleep for " + String.valueOf(delay));
 
                     mHandler.postDelayed(new Runnable() {
@@ -531,13 +585,15 @@ public class BLENetworkService implements NetworkService {
     }
 
     private void discovery(final ActionListener listener) {
-        if (!hasPending) {
-            hasPending = true;
+        Log.v("BLENetworkService", "discovery hasPending " + String.valueOf(hasDiscoveryPending));
+
+        if (!hasDiscoveryPending) {
+            hasDiscoveryPending = true;
 
             mScanner.scan(SCAN_DURATION, new ActionListener() {
                 @Override
                 public void onSuccess() {
-                    hasPending = false;
+                    hasDiscoveryPending = false;
 
                     //callback
                     listener.onSuccess();
@@ -545,7 +601,7 @@ public class BLENetworkService implements NetworkService {
 
                 @Override
                 public void onFailure(int error) {
-                    hasPending = false;
+                    hasDiscoveryPending = false;
                     listener.onFailure(error);
                 }
             });
@@ -564,26 +620,5 @@ public class BLENetworkService implements NetworkService {
         return adapter.getAddress();
     }
 
-
-     /*
-    * Helper - message
-     */
-
-    protected void sendMessage(int key, Bundle bundle) {
-        if (isBound) {
-            Message msg = Message.obtain(null, key, 0, 0);
-
-            // Set the bundle data to the Message
-            if (bundle != null) {
-                msg.setData(bundle);
-            }
-            // Send the Message to the Service (in another process)
-            try {
-                mMessenger.send(msg);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
 }

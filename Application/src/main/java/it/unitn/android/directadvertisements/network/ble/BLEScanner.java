@@ -15,6 +15,8 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 
+import it.unitn.android.directadvertisements.app.ServiceConnector;
+
 public class BLEScanner {
 
 
@@ -25,15 +27,13 @@ public class BLEScanner {
 
     private BLEReceiver mReceiver;
 
-    private Messenger mMessenger;
 
     private boolean isActive = false;
     private Handler mHandler;
 
 
-    public BLEScanner(BluetoothAdapter adapter, Messenger messenger) {
+    public BLEScanner(BluetoothAdapter adapter, ServiceConnector serviceConnector) {
         mAdapter = adapter;
-        mMessenger = messenger;
 
         //get scanner
         mScanner = mAdapter.getBluetoothLeScanner();
@@ -41,8 +41,10 @@ public class BLEScanner {
         //create an handler for delayed tasks
         mHandler = new Handler();
 
-        //setup filter
-        mScanFilter = new ScanFilter.Builder().setServiceUuid(BLENetworkService.Service_UUID).build();
+        //setup filter for service data
+//        mScanFilter = new ScanFilter.Builder().setServiceUuid(BLENetworkService.Service_UUID).build();
+        //setup filter for manufacturer data
+        mScanFilter = buildScanFilter();
 
         //setup settings
 //        mSettings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build();
@@ -52,7 +54,7 @@ public class BLEScanner {
         Log.v("BLEScanner", "scanSettings" + mSettings.toString());
 
         //create receiver
-        mReceiver = new BLEReceiver(mMessenger);
+        mReceiver = new BLEReceiver(serviceConnector);
 
     }
 
@@ -124,11 +126,34 @@ public class BLEScanner {
             listener.onSuccess();
         }
     }
+
     public ScanSettings buildScanSettings() {
         ScanSettings.Builder settingsBuilder = new ScanSettings.Builder();
         settingsBuilder.setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY);
+        //enforce immediate report from ble stack to app
+        settingsBuilder.setReportDelay(0);
         //can't set all matches, so depends on device if packets from same source are cached/filtered
 //        settingsBuilder.setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES);
         return settingsBuilder.build();
     }
+
+    public ScanFilter buildScanFilter() {
+        ScanFilter.Builder mBuilder = new ScanFilter.Builder();
+        //use template msg
+        BLENetworkMessage msg = new BLENetworkMessage();
+        byte[] template = msg.buildTemplateData();
+        //scan mask - only uuid checked: first 2 bytes
+        byte[] mask = new byte[template.length];
+        //check flag
+        mask[0] = (byte) 0x01;
+        mask[1] = (byte) 0x01;
+        for (int i = 2; i < mask.length; i++) {
+            //ignore flag
+            mask[i] = (byte) 0x00;
+        }
+
+        mBuilder.setManufacturerData(224, template, mask);
+        return mBuilder.build();
+    }
+
 }

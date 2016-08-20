@@ -7,57 +7,59 @@ package it.unitn.android.directadvertisements.network;
 import android.content.Context;
 import android.os.IBinder;
 
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.network.ble.BLENetworkService;
 import it.unitn.android.directadvertisements.network.wifi.WifiNetworkService;
 
-public class NetworkServiceUtil {
+public class NetworkServiceFactory {
 
 
-    private static NetworkService _service;
-    private static boolean _available = false;
-    private static byte counter = 0;
+//    private static NetworkService _service;
+//    private static boolean _available = false;
+//    private static byte counter = 0;
 
-    public static NetworkService getService(String network, Context context, IBinder binder) {
-        if (_service != null) {
-            if (!_service.getNetwork().equals(network)) {
-                //stop
-                _service.destroy();
-
-                //clear
-                _service = null;
-            }
-        }
-
-        if (_service == null) {
-            switch (network) {
-                case NetworkService.SERVICE_WIFI:
-                    _service = new WifiNetworkService(context, binder);
-                    break;
-                case NetworkService.SERVICE_BLE:
-                    _service = new BLENetworkService(context, binder);
-                    break;
-            }
-
+    public static NetworkService getService(String network, Context context) {
+//        if (_service != null) {
+//            if (!_service.getNetwork().equals(network)) {
+//                //stop
+//                _service.destroy();
+//
+//                //clear
+//                _service = null;
+//            }
+//        }
+//
+//        if (_service == null) {
+        NetworkService _service = null;
+        switch (network) {
+            case NetworkService.SERVICE_WIFI:
+                _service = new WifiNetworkService(context, new ServiceConnector(context));
+                break;
+            case NetworkService.SERVICE_BLE:
+                _service = new BLENetworkService(context, new ServiceConnector(context));
+                break;
         }
         return _service;
+//        }
+//        return _service;
     }
 
 
-    /*
-    * Node counter
-     */
-    public static byte nextIdentifier() {
-        return counter++;
-    }
-
-    /*
-     * Events handling
-     */
-
-
-    public static void receive(NetworkMessage msg) {
-
-    }
+//    /*
+//    * Node counter
+//     */
+//    public static byte nextIdentifier() {
+//        return counter++;
+//    }
+//
+//    /*
+//     * Events handling
+//     */
+//
+//
+//    public static void receive(NetworkMessage msg) {
+//
+//    }
 
 
 
@@ -71,7 +73,7 @@ public class NetworkServiceUtil {
 //    private int _clock;
 
 
-//    public NetworkServiceUtil(Context context) {
+//    public NetworkServiceFactory(Context context) {
 //        this._context = context;
 //        this._nodes = new LinkedHashMap<>();
 //        this._clock = -1;

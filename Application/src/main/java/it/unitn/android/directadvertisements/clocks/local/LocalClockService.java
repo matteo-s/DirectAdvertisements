@@ -16,28 +16,33 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.clocks.ClockService;
 
 public class LocalClockService implements ClockService {
 
     private short _c;
-    private Messenger mMessenger;
-    boolean isBound = false;
     private boolean isActive = false;
     private Timer mTimer = null;
+    private ClockTimerTask mTask = null;
+    private ServiceConnector mService = null;
 
-
-    public LocalClockService(Context context, IBinder binder) {
+    public LocalClockService(Context context, ServiceConnector serviceConnector) {
         Log.v("LocalClockService", "create");
 
         this._c = 0;
 
-        //bind
-        this.mMessenger = new Messenger(binder);
-        this.isBound = true;
+        this.mService = serviceConnector;
 
+    }
+
+    public void destroy() {
+        stopTimer();
+        //unbind
+        mService.unbindService();
     }
 
 
@@ -54,6 +59,8 @@ public class LocalClockService implements ClockService {
             //reset to 1
             _c = 1;
         }
+        Log.v("LocalClockService", "increment to " + String.valueOf(_c));
+
         return _c;
     }
 
@@ -69,13 +76,20 @@ public class LocalClockService implements ClockService {
 
     @Override
     public void sync(short c) {
+        Log.v("LocalClockService", "sync to " + String.valueOf(c));
         _c = c;
 
         //reset timer if active
         if (isActive) {
-            stop();
+//            //set skip flag to ignore current running task - demanded to stop
+//            mTask.skip = true;
+
+            stopTimer();
+            startTimer();
+
+
+            //disable update on sync to avoid immediate retransmission?
             update();
-            start();
         }
     }
 
@@ -88,51 +102,89 @@ public class LocalClockService implements ClockService {
     public void start() {
         Log.v("LocalClockService", "start");
 
-        // cancel if already existed
-        if (mTimer != null) {
-            mTimer.cancel();
-        }
-        // recreate new
-        mTimer = new Timer();
+        //bind
+        mService.bindService();
 
-        // schedule task
-        mTimer.scheduleAtFixedRate(new ClockTimerTask(), 0, ClockService.INTERVAL);
         isActive = true;
+        startTimer();
+
+
     }
 
     @Override
     public void stop() {
         Log.v("LocalClockService", "stop");
 
-        //stop timer
+        isActive = false;
+        stopTimer();
+
+        //unbind
+        mService.unbindService();
+    }
+
+    private void startTimer() {
+        Log.v("LocalClockService", "startTimer");
+
+
+        // cancel if already existed
         if (mTimer != null) {
+            Log.v("LocalClockService", "start cancel timer");
             mTimer.cancel();
         }
-        isActive = false;
+        // recreate new
+        mTask = new ClockTimerTask();
+        mTimer = new Timer();
+
+        // schedule task
+        Log.v("LocalClockService", "schedule task " + mTask.uuid + " timer " + String.valueOf(ClockService.INTERVAL));
+        //use interval for first run delay AND for subsequent periods
+        mTimer.scheduleAtFixedRate(mTask, ClockService.INTERVAL, ClockService.INTERVAL);
+    }
+
+    private void stopTimer() {
+        Log.v("LocalClockService", "stop");
+
+        //stop timer
+        if (mTask != null) {
+            Log.v("LocalClockService", "stop cancel task " + mTask.uuid);
+            //set skip flag to ignore current running task
+            mTask.skip = true;
+        }
+
+        if (mTimer != null) {
+            Log.v("LocalClockService", "stop cancel timer");
+            mTimer.cancel();
+        }
     }
 
 
     private void update() {
         //notify via msg
-        if (isBound && isActive) {
-            Message msg = Message.obtain(null, MessageKeys.CLOCK_INCREMENT, 0, 0);
-
-            try {
-                mMessenger.send(msg);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
+        if (isActive) {
+            Log.v("LocalClockService", "send update for " + String.valueOf(_c));
+            mService.sendMessage(MessageKeys.CLOCK_INCREMENT, null);
         }
     }
 
     private class ClockTimerTask extends TimerTask {
+        public boolean skip = false;
+        public String uuid;
+
+        public ClockTimerTask() {
+            uuid = UUID.randomUUID().toString();
+        }
 
         @Override
         public void run() {
-            Log.v("LocalClockService", "timer task");
+            Log.v("LocalClockService", "timer task " + uuid);
+            if (!skip) {
+                increment();
+                update();
+            } else {
+                //clear skip
+                skip = false;
+            }
 
-            increment();
-            update();
         }
 
     }

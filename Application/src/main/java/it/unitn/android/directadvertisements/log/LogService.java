@@ -6,6 +6,7 @@ package it.unitn.android.directadvertisements.log;
 
 public interface LogService {
 
+    public void destroy();
 
     public void debug(String component, String msg);
 

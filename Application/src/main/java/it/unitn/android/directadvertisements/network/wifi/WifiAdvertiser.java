@@ -13,23 +13,26 @@ import android.util.Log;
 
 import java.util.Map;
 
+import it.unitn.android.directadvertisements.app.ServiceConnector;
+
 public class WifiAdvertiser {
 
 
     private WifiP2pManager mManager;
     private WifiP2pManager.Channel mChannel;
-    private Messenger mMessenger;
     private WifiP2pDnsSdServiceInfo mInfo;
 
     private boolean isActive = false;
     private Handler mHandler;
+    private ServiceConnector mService = null;
 
-    public WifiAdvertiser(WifiP2pManager manager, WifiP2pManager.Channel channel, Messenger messenger) {
+
+    public WifiAdvertiser(WifiP2pManager manager, WifiP2pManager.Channel channel,  ServiceConnector serviceConnector) {
         mManager = manager;
         mChannel = channel;
-        mMessenger = messenger;
         mInfo = null;
 
+        mService = serviceConnector;
         //create an handler for delayed tasks
         mHandler = new Handler();
     }

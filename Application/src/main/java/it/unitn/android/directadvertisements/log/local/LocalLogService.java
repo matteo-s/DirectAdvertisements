@@ -5,7 +5,6 @@
 package it.unitn.android.directadvertisements.log.local;
 
 import android.content.Context;
-import android.os.Environment;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -19,7 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import it.unitn.android.directadvertisements.clocks.ClockService;
-import it.unitn.android.directadvertisements.clocks.ClockServiceUtil;
+import it.unitn.android.directadvertisements.clocks.ClockServiceFactory;
 import it.unitn.android.directadvertisements.log.LogService;
 
 public class LocalLogService implements LogService {
@@ -32,6 +31,10 @@ public class LocalLogService implements LogService {
         _files = new HashMap();
         _dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         _baseDir = context.getFilesDir();
+    }
+
+    public void destroy() {
+
     }
 
 /*
@@ -66,10 +69,11 @@ public class LocalLogService implements LogService {
         try {
             Date now = new Date();
             short c = 0;
-            ClockService clock = ClockServiceUtil.getService();
-            if (clock != null) {
-                c = clock.get();
-            }
+            //TODO: fetch current clock
+//            ClockService clock = ClockServiceFactory.getService();
+//            if (clock != null) {
+//                c = clock.get();
+//            }
 
             //prepare line
             String line = _dateFormat.format(now) + " \t " + String.valueOf(c) + " \t " + msg;

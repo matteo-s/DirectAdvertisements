@@ -29,4 +29,5 @@ public interface ClockService {
 
     public void stop();
 
+    public void destroy();
 }
