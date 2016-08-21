@@ -4,9 +4,15 @@
 
 package it.unitn.android.directadvertisements.app;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.app.TaskStackBuilder;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,6 +21,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -22,9 +29,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import it.unitn.android.directadvertisements.MainActivity;
+import it.unitn.android.directadvertisements.R;
 import it.unitn.android.directadvertisements.clocks.ClockService;
 import it.unitn.android.directadvertisements.clocks.ClockServiceFactory;
 import it.unitn.android.directadvertisements.log.LogService;
@@ -44,7 +54,7 @@ public class MainService extends Service {
     /*
     * Global
      */
-
+    public static int SERVICE_ID = 1001;
     public boolean RUNNING = false;
     private String uuid;
 
@@ -166,6 +176,12 @@ public class MainService extends Service {
             mSettings = SettingsServiceUtil.getService(this);
         }
 
+
+        if (mLogger == null) {
+            mLogger = LogServiceUtil.getLogger(this);
+
+        }
+
         //check if previously running
         if (!RUNNING) {
             boolean previous = Boolean.parseBoolean(mSettings.getSetting("running", "false"));
@@ -173,8 +189,19 @@ public class MainService extends Service {
                 int id = Integer.parseInt(mSettings.getSetting("id", "0"));
                 String network = mSettings.getSetting("network", "ble");
 
+                Map<String, String> settings = mSettings.getSettings();
+
+                Bundle bundle = new Bundle();
+                for (String k : settings.keySet()) {
+                    if (k.startsWith("network.")) {
+                        //add to bundle
+                        bundle.putString(k, settings.get(k));
+                    }
+
+                }
+
                 //start
-                start(network, String.valueOf(id));
+                start(network, String.valueOf(id), bundle);
             }
 
         }
@@ -240,7 +267,7 @@ public class MainService extends Service {
                     Log.v("MainService msg", "service start " + network + " id " + deviceId);
 
                     //start
-                    start(network, deviceId);
+                    start(network, deviceId, bundle);
                     break;
                 case MessageKeys.SERVICE_STOP:
                     Log.v("MainService msg", "service stop");
@@ -383,22 +410,23 @@ public class MainService extends Service {
 
 
                 //notify activity
-                mServiceHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        // Send broadcast out with action filter and extras
-                        Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
-                        intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
-
-                        ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
-                        short c = mClockService.get();
-
-                        intent.putExtra("nodes", nodes);
-                        intent.putExtra("clock", c);
-
-                        mLocalBroadcastManager.sendBroadcast(intent);
-                    }
-                });
+//                mServiceHandler.post(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        // Send broadcast out with action filter and extras
+//                        Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+//                        intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
+//
+//                        ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+//                        short c = mClockService.get();
+//
+//                        intent.putExtra("nodes", nodes);
+//                        intent.putExtra("clock", c);
+//
+//                        mLocalBroadcastManager.sendBroadcast(intent);
+//                    }
+//                });
+                notifyUpdate();
             }
         }
     }
@@ -422,34 +450,35 @@ public class MainService extends Service {
         mNetworkRegistry.updateNode(mNode);
 
         //notify
-        mServiceHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                // Send broadcast out with action filter and extras
-                Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
-                intent.putExtra(MessageKeys.TYPE, MessageKeys.CLOCK_INCREMENT);
-                intent.putExtra("c", c);
-                mLocalBroadcastManager.sendBroadcast(intent);
-            }
-        });
-
-        //notify activity
-        mServiceHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                // Send broadcast out with action filter and extras
-                Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
-                intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
-
-                ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
-                short c = mClockService.get();
-
-                intent.putExtra("nodes", nodes);
-                intent.putExtra("clock", c);
-
-                mLocalBroadcastManager.sendBroadcast(intent);
-            }
-        });
+//        mServiceHandler.post(new Runnable() {
+//            @Override
+//            public void run() {
+//                // Send broadcast out with action filter and extras
+//                Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+//                intent.putExtra(MessageKeys.TYPE, MessageKeys.CLOCK_INCREMENT);
+//                intent.putExtra("c", c);
+//                mLocalBroadcastManager.sendBroadcast(intent);
+//            }
+//        });
+//
+//        //notify activity
+//        mServiceHandler.post(new Runnable() {
+//            @Override
+//            public void run() {
+//                // Send broadcast out with action filter and extras
+//                Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+//                intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
+//
+//                ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+//                short c = mClockService.get();
+//
+//                intent.putExtra("nodes", nodes);
+//                intent.putExtra("clock", c);
+//
+//                mLocalBroadcastManager.sendBroadcast(intent);
+//            }
+//        });
+        notifyUpdate();
     }
 
     private void clockReset() {
@@ -461,6 +490,9 @@ public class MainService extends Service {
 
         //set new value without resetting timer
         mClockService.set(c);
+
+        //logger
+        mLogger.info("clock", String.valueOf(c));
 
         //notify
         mServiceHandler.post(new Runnable() {
@@ -581,6 +613,7 @@ public class MainService extends Service {
                 }
 
                 //check for vector clock
+                int maxId = mId;
                 Iterator<Integer> iter = msg.clocks.keySet().iterator();
                 while (iter.hasNext()) {
                     int i = iter.next();
@@ -611,6 +644,10 @@ public class MainService extends Service {
                             updated = true;
                         }
                     }
+
+                    if (i > maxId) {
+                        maxId = i;
+                    }
                 }
 
                 //update local clock if needed
@@ -624,30 +661,48 @@ public class MainService extends Service {
                     //sync clock
                     mClockService.sync(msg.clock);
                     updated = true;
+
+
                 }
 
 
                 if (updated) {
                     Log.v("MainService", "clockUpdate notify");
 
-                    //notify activity
-                    mServiceHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            // Send broadcast out with action filter and extras
-                            Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
-                            intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
+                    //logger
+                    mLogger.info("clock", String.valueOf(msg.clock));
 
-                            ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
-                            short c = mClockService.get();
-                            Log.v("MainService", "clockUpdate notify nodes " + String.valueOf(nodes.size()));
-
-                            intent.putExtra("nodes", nodes);
-                            intent.putExtra("clock", c);
-
-                            mLocalBroadcastManager.sendBroadcast(intent);
+                    StringBuilder vector = new StringBuilder();
+                    for (int i = 1; i <= maxId; i++) {
+                        if (msg.clocks.containsKey(i)) {
+                            vector.append(Short.toString(msg.clocks.get(i))).append(" ");
+                        } else {
+                            vector.append("0").append(" ");
                         }
-                    });
+                    }
+                    //logger
+                    mLogger.info("nodes", vector.toString());
+
+
+                    //notify activity
+//                    mServiceHandler.post(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            // Send broadcast out with action filter and extras
+//                            Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+//                            intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
+//
+//                            ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+//                            short c = mClockService.get();
+//                            Log.v("MainService", "clockUpdate notify nodes " + String.valueOf(nodes.size()));
+//
+//                            intent.putExtra("nodes", nodes);
+//                            intent.putExtra("clock", c);
+//
+//                            mLocalBroadcastManager.sendBroadcast(intent);
+//                        }
+//                    });
+                    notifyUpdate();
                 }
             }
         }
@@ -665,7 +720,7 @@ public class MainService extends Service {
     /*
     * handle services, can be called multiple times
      */
-    protected void start(String network, String deviceId) {
+    protected void start(String network, String deviceId, Bundle bundle) {
         //local node
         mId = 0;
         try {
@@ -730,38 +785,82 @@ public class MainService extends Service {
         }
 
         //init, if already initialized nothing happens
-        mNetworkService.init();
+        mNetworkService.init(bundle);
 
+        //check if available
+        if (!mNetworkService.isAvailable()) {
+            //can't start
+            stop();
+        } else {
+            //start, will cause bind
+            mNetworkService.activate();
 
-        //start, will cause bind
-        mNetworkService.activate();
+            RUNNING = true;
+            //logger
+            mLogger.info("service", "start");
 
-        RUNNING = true;
+            //save
+            mSettings.setSetting("running", Boolean.toString(RUNNING));
+            mSettings.setSetting("network", network);
+            mSettings.setSetting("id", deviceId);
 
-        //save
-        mSettings.setSetting("running", Boolean.toString(RUNNING));
-        mSettings.setSetting("network", network);
-        mSettings.setSetting("id", deviceId);
-
-        mSettings.writeSettings();
-
-
-        //notify
-        mServiceHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                // Send broadcast out with action filter and extras
-                Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
-                intent.putExtra(MessageKeys.TYPE, MessageKeys.SERVICE_START);
-                intent.putExtra("message", "MainService started");
-                mLocalBroadcastManager.sendBroadcast(intent);
+            for (String k : bundle.keySet()) {
+                if (k.startsWith("network.")) {
+                    //persist
+                    mSettings.setSetting(k, bundle.getString(k));
+                }
             }
-        });
 
+
+            mSettings.writeSettings();
+
+            //broadcast ourselves
+            clockBroadcast();
+
+            //start in foreground
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+//        notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
+            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
+                    notificationIntent, 0);
+
+            Bitmap icon = BitmapFactory.decodeResource(getResources(),
+                    R.drawable.ic_launcher);
+
+            Notification notification = new NotificationCompat.Builder(this)
+                    .setContentTitle("DirectAdvertisement")
+                    .setTicker("DirectAdvertisement")
+                    .setContentText("Service is running")
+                    .setSmallIcon(R.drawable.ic_launcher)
+                    .setLargeIcon(
+                            Bitmap.createScaledBitmap(icon, 128, 128, false))
+                    .setContentIntent(pendingIntent)
+                    .setOngoing(true)
+                    .build();
+
+            startForeground(SERVICE_ID, notification);
+
+
+            //notify
+            mServiceHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    // Send broadcast out with action filter and extras
+                    Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
+                    intent.putExtra(MessageKeys.TYPE, MessageKeys.SERVICE_START);
+                    intent.putExtra("message", "MainService started");
+                    mLocalBroadcastManager.sendBroadcast(intent);
+                }
+            });
+        }
     }
 
     protected void status() {
-        Log.v("MainService", "MainService status ");
+        Log.v("MainService", "MainService status running " + String.valueOf(RUNNING));
+
+        //logger
+        mLogger.info("service", "status running " + String.valueOf(RUNNING));
 
         //notify
         mServiceHandler.post(new Runnable() {
@@ -784,6 +883,9 @@ public class MainService extends Service {
         Log.v("MainService", "MainService stop ");
         RUNNING = false;
 
+        //logger
+        mLogger.info("service", "stop");
+
         //save
         mSettings.setSetting("running", Boolean.toString(RUNNING));
         //leave node info in settings for next run
@@ -803,6 +905,9 @@ public class MainService extends Service {
         if (mNetworkService != null) {
             mNetworkService.deactivate();
         }
+
+        //clear notification
+        stopForeground(true);
 
         //notify
         mServiceHandler.post(new Runnable() {
@@ -836,6 +941,9 @@ public class MainService extends Service {
      */
     protected void notifyUpdate() {
         if (mNetworkRegistry != null && mClockService != null) {
+            final ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
+            final short c = mClockService.get();
+
             //notify activity
             mServiceHandler.post(new Runnable() {
                 @Override
@@ -844,8 +952,8 @@ public class MainService extends Service {
                     Intent intent = new Intent(MessageKeys.DEST_ACTIVITY);
                     intent.putExtra(MessageKeys.TYPE, MessageKeys.NOTIFY_UPDATE);
 
-                    ArrayList<NetworkNode> nodes = mNetworkRegistry.getNodes();
-                    short c = mClockService.get();
+
+                    Log.v("MainService", "clockUpdate notify clock " + String.valueOf(c) + " nodes " + String.valueOf(nodes.size()));
 
                     intent.putExtra("nodes", nodes);
                     intent.putExtra("clock", c);
@@ -853,6 +961,18 @@ public class MainService extends Service {
                     mLocalBroadcastManager.sendBroadcast(intent);
                 }
             });
+
+            //check if missing nodes require alert
+            short threshold = (short) Math.max((c - 1), 0);
+
+            for (NetworkNode n : nodes) {
+                if (n.id != mId && n.clock < threshold) {
+                    showNotification(c, n);
+                } else {
+                    clearNotification(c, n);
+                }
+            }
+
         }
     }
 
@@ -918,6 +1038,58 @@ public class MainService extends Service {
         }
     }
 
+
+    private void showNotification(short clock, NetworkNode node) {
+        short missing = (short) Math.max((clock - node.clock), 0);
+        Log.v("MainService", "show notification node " + String.valueOf(node.id) + " missing " + String.valueOf(missing) + " ticks ");
+
+        //fetch name from settings
+        String name = node.name;
+        if (mSettings != null) {
+            name = mSettings.getSetting("node." + Integer.toString(node.id) + ".name", node.name);
+        }
+
+        Intent resultIntent = new Intent(this, MainActivity.class);
+        resultIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+//        // The stack builder object will contain an artificial back stack for the
+//        // started Activity.
+//        // This ensures that navigating backward from the Activity leads out of
+//        // your application to the Home screen.
+//        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+//        // Adds the back stack for the Intent (but not the Intent itself)
+//        stackBuilder.addParentStack(MainActivity.class);
+//        // Adds the Intent that starts the Activity to the top of the stack
+//        stackBuilder.addNextIntent(resultIntent);
+//        PendingIntent pendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
+                resultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+
+        Bitmap icon = BitmapFactory.decodeResource(getResources(),
+                R.drawable.ic_launcher);
+
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
+                .setContentTitle("DirectAdvertisement")
+                .setContentText("Alert for " + name + "(" + String.valueOf(node.id) + ") missing for " + String.valueOf(missing) + " ticks")
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setLargeIcon(Bitmap.createScaledBitmap(icon, 128, 128, false))
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent);
+
+        NotificationManager mNotificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
+        // id allows you to update the notification later on.
+        int nId = SERVICE_ID + node.id;
+        mNotificationManager.notify(nId, mBuilder.build());
+
+    }
+
+    private void clearNotification(short clock, NetworkNode node) {
+        int nId = SERVICE_ID + node.id;
+
+        NotificationManager mNotificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.cancel(nId);
+    }
 
 //    // Define the callback for what to do when message is received
 //    private BroadcastReceiver mAlarmReceiver = new BroadcastReceiver() {

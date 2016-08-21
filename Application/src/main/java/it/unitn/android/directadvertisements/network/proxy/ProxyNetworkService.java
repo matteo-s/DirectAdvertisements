@@ -5,6 +5,7 @@
 package it.unitn.android.directadvertisements.network.proxy;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
@@ -16,6 +17,7 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
@@ -37,16 +39,18 @@ public class ProxyNetworkService implements NetworkService {
 * Context
  */
     private Context mContext;
-    private Messenger mMessenger;
+    private ServiceConnector mService = null;
     private Handler mHandler;
 
     /*
     * Bluetooth
      */
     private BluetoothAdapter mAdapter;
+    private String mDevice;
 
 
     private ProxyNetworkMessage mMessage;
+    private ProxyClient mClient;
 
     private boolean isAvailable;
     private boolean isSupported;
@@ -56,23 +60,24 @@ public class ProxyNetworkService implements NetworkService {
      */
 
 
-    boolean isBound = false;
+    boolean isConnected = false;
     boolean isActive = false;
     boolean hasPending = false;
     boolean hasConnection = false;
     boolean hasLooper = false;
 
 
-    public ProxyNetworkService(Context context, IBinder binder) {
+    public ProxyNetworkService(Context context, ServiceConnector serviceConnector) {
         mAdapter = null;
         isAvailable = false;
         isSupported = false;
+        isConnected = false;
 
         this.mMessage = null;
+        this.mDevice = null;
 
         this.mContext = context;
-        this.mMessenger = new Messenger(binder);
-        this.isBound = true;
+        this.mService = serviceConnector;
 
         //create an handler for delayed tasks
         mHandler = new Handler();
@@ -80,7 +85,7 @@ public class ProxyNetworkService implements NetworkService {
 
     @Override
     public String getNetwork() {
-        return NetworkService.SERVICE_BLE;
+        return NetworkService.SERVICE_PROXY;
     }
 
     @Override
@@ -103,7 +108,31 @@ public class ProxyNetworkService implements NetworkService {
     }
 
     @Override
-    public void init() {
+    public void init(Bundle bundle) {
+        Log.v("ProxyNetworkService", "init");
+
+        //check for device
+        if (bundle.containsKey("network.proxy")) {
+            this.mDevice = bundle.getString("network.proxy");
+
+            Log.v("ProxyNetworkService", "init for device " + mDevice);
+            mAdapter = ((BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE))
+                    .getAdapter();
+
+            if (mAdapter != null) {
+                isSupported = true;
+
+                //check if active
+                if (mAdapter.isEnabled()) {
+                    isAvailable = true;
+
+                } else {
+                    //set not active
+                    isAvailable = false;
+                }
+            }
+
+        }
 
     }
 
@@ -113,19 +142,33 @@ public class ProxyNetworkService implements NetworkService {
         deactivate();
 
         // unbind or process might have crashes
-        mMessenger = null;
-        isBound = false;
-
-
+        mService.unbindService();
     }
 
     @Override
     public void activate() {
+        Log.v("ProxyNetworkService", "activate");
+
+        //bind
+        mService.bindService();
+
+        if (mDevice == null) {
+            //no proxy device, stop
+            deactivate();
+
+        } else {
+            //start connection
+
+
+            //start indefinitely
+            isActive = true;
+        }
 
     }
 
     @Override
     public void deactivate() {
+        Log.v("ProxyNetworkService", "deactivate");
 
         //set inactive
         isActive = false;
@@ -137,7 +180,7 @@ public class ProxyNetworkService implements NetworkService {
         hasPending = false;
         hasConnection = false;
 
-        sendMessage(MessageKeys.NETWORK_STOP, null);
+        mService.sendMessage(MessageKeys.NETWORK_STOP, null);
     }
 
 
@@ -230,24 +273,4 @@ public class ProxyNetworkService implements NetworkService {
     }
 
 
-     /*
-    * Helper - message
-     */
-
-    protected void sendMessage(int key, Bundle bundle) {
-        if (isBound) {
-            Message msg = Message.obtain(null, key, 0, 0);
-
-            // Set the bundle data to the Message
-            if (bundle != null) {
-                msg.setData(bundle);
-            }
-            // Send the Message to the Service (in another process)
-            try {
-                mMessenger.send(msg);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 }

@@ -84,8 +84,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:checked="true"
-                android:text="WiFi - BLE" />
+                android:checked="false"
+                android:text="BLE - Proxy" />
 
             <Button
                 android:id="@+id/start_button_log"
@@ -170,6 +170,79 @@
 
                 <ListView
                     android:id="@+id/main_list_view"
+                    style="@style/CardView.Light"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal|top"
+                    android:background="#fefefe"
+                    android:divider="@color/colorPrimary" />
+
+            </FrameLayout>
+
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/proxy_layout"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:columnCount="1"
+            android:orientation="vertical"
+            android:paddingBottom="0dp"
+            android:paddingLeft="16dp"
+            android:paddingRight="16dp"
+            android:paddingTop="0dp">
+
+            <TableLayout
+                android:id="@+id/proxy_input_container"
+                android:layout_width="fill_parent"
+                android:layout_height="48dp"
+                android:layout_alignParentStart="false"
+                android:layout_alignParentTop="true"
+                android:layout_marginBottom="8dp"
+                android:layout_rowWeight="1"
+                android:stretchColumns="*">
+
+
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <TextView
+                        android:id="@+id/proxy_field_id"
+                        android:layout_width="wrap_content"
+                        android:layout_height="fill_parent"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="center"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="Devices"
+                        android:textSize="18dp" />
+
+
+                    <Button
+                        android:id="@+id/proxy_button_scan"
+                        style="@android:style/Widget.Material.Light.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_columnWeight="1"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_span="1"
+                        android:background="@color/colorPrimary"
+                        android:text="Scan"
+                        android:textColor="@color/textColorPrimary" />
+                </TableRow>
+            </TableLayout>
+
+            <FrameLayout
+                android:id="@+id/proxy_list_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignWithParentIfMissing="false"
+                android:layout_below="@id/proxy_input_container"
+                android:background="@color/cardview_light_background">
+
+                <ListView
+                    android:id="@+id/proxy_list_view"
                     style="@style/CardView.Light"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

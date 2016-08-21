@@ -121,7 +121,7 @@ public class BLENetworkService implements NetworkService {
     }
 
     @Override
-    public void init() {
+    public void init(Bundle bundle) {
         mAdapter = ((BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE))
                 .getAdapter();
 

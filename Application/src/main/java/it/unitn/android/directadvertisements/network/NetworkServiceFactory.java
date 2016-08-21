@@ -9,6 +9,7 @@ import android.os.IBinder;
 
 import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.network.ble.BLENetworkService;
+import it.unitn.android.directadvertisements.network.proxy.ProxyNetworkService;
 import it.unitn.android.directadvertisements.network.wifi.WifiNetworkService;
 
 public class NetworkServiceFactory {
@@ -37,6 +38,9 @@ public class NetworkServiceFactory {
                 break;
             case NetworkService.SERVICE_BLE:
                 _service = new BLENetworkService(context, new ServiceConnector(context));
+                break;
+            case NetworkService.SERVICE_PROXY:
+                _service = new ProxyNetworkService(context, new ServiceConnector(context));
                 break;
         }
         return _service;

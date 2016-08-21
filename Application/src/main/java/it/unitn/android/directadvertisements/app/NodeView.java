@@ -12,7 +12,8 @@ public class NodeView implements Comparable<NodeView> {
     public String address;
     public int clock;
     public int color;
-
+    public boolean hide;
+    public boolean alert;
 
     @Override
     public boolean equals(Object o) {

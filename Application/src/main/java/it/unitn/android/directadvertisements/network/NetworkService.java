@@ -4,6 +4,8 @@
 
 package it.unitn.android.directadvertisements.network;
 
+import android.os.Bundle;
+
 public interface NetworkService {
    /*
     * Constants
@@ -32,7 +34,7 @@ public interface NetworkService {
  * Handling
   */
 
-    public void init();
+    public void init(Bundle bundle);
 
     public void destroy();
 

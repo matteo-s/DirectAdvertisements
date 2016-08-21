@@ -76,7 +76,8 @@ public class LocalLogService implements LogService {
 //            }
 
             //prepare line
-            String line = _dateFormat.format(now) + " \t " + String.valueOf(c) + " \t " + msg;
+//            String line = _dateFormat.format(now) + " \t " + String.valueOf(c) + " \t " + msg;
+            String line = _dateFormat.format(now) + " \t " + msg;
 
             //open with append
             FileOutputStream fos = new FileOutputStream(file, true);

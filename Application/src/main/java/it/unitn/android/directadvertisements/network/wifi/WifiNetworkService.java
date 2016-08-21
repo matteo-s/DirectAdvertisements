@@ -163,7 +163,7 @@ public class WifiNetworkService implements NetworkService {
     }
 
     @Override
-    public void init() {
+    public void init(Bundle bundle) {
         if (isConfigured()) {
             //nothing to do, callback will populate device
         }

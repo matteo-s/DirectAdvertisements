@@ -58,6 +58,9 @@ public class SettingsService {
         }
     }
 
+    public Map<String, String> getSettings() {
+        return _settings;
+    }
 
     /*
     * Handlers

@@ -5,6 +5,11 @@
 package it.unitn.android.directadvertisements;
 
 import android.app.ProgressDialog;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -22,11 +27,9 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.FileProvider;
 import android.support.v4.content.LocalBroadcastManager;
-import android.text.Layout;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Switch;
@@ -43,10 +46,11 @@ import com.google.zxing.integration.android.IntentResult;
 import java.io.File;
 import java.util.List;
 
-import it.unitn.android.directadvertisements.app.ActionKeys;
 import it.unitn.android.directadvertisements.app.MainService;
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.app.NodesFragment;
+import it.unitn.android.directadvertisements.app.ProxyFragment;
+import it.unitn.android.directadvertisements.app.ProxyView;
 import it.unitn.android.directadvertisements.log.LogServiceUtil;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
@@ -63,6 +67,8 @@ public class MainActivity extends FragmentActivity {
     boolean isBound = false;
     Messenger mMessenger;
     NodesFragment nodesFragment;
+    ProxyFragment proxyFragment;
+    ScanCallback proxyCallback;
     ViewFlipper viewFlipper;
     SettingsService mSettings;
 
@@ -156,6 +162,8 @@ public class MainActivity extends FragmentActivity {
         viewFlipper.stopFlipping();
 
         nodesFragment = new NodesFragment();
+        proxyFragment = new ProxyFragment();
+
         //setup fragments
         setupFragments();
 
@@ -189,11 +197,12 @@ public class MainActivity extends FragmentActivity {
         String previous = mSettings.getSetting("activity", "loading");
         restricted = Boolean.parseBoolean(mSettings.getSetting("restricted", "false"));
 
-        Log.v("MainService", "previous activity " + previous);
+        Log.v("MainActivity", "previous activity " + previous);
 
         //check if previous run
         if (previous.equals("main")) {
             String role = mSettings.getSetting("role", "slave");
+            String network = mSettings.getSetting("network", "ble");
             int id = Integer.parseInt(mSettings.getSetting("id", "0"));
 
             if (id != 0) {
@@ -202,13 +211,17 @@ public class MainActivity extends FragmentActivity {
                 mSettings.setSetting("restricted", Boolean.toString(restricted));
                 mSettings.writeSettings();
 
+                //update switch
+                final Switch startToggleNetwork = (Switch) findViewById(R.id.start_switch_network);
+                startToggleNetwork.setChecked((!network.equals("ble")));
+
                 activityMain((id == 1), id, false);
             } else {
-                //reset settings and load start
-                mSettings.clearSetting("role");
-                mSettings.clearSetting("activity");
-                mSettings.clearSetting("id");
-                mSettings.writeSettings();
+//                //reset settings and load start
+//                mSettings.clearSetting("role");
+//                mSettings.clearSetting("activity");
+//                mSettings.clearSetting("id");
+//                mSettings.writeSettings();
 
                 //load start activity
                 activityStart();
@@ -242,6 +255,16 @@ public class MainActivity extends FragmentActivity {
 
         Log.v("MainActivity", "activityStart");
 
+        //reset settings
+        mSettings.clearSetting("role");
+        mSettings.clearSetting("activity");
+        mSettings.clearSetting("id");
+        mSettings.clearSetting("network");
+        mSettings.clearSetting("network.device");
+
+        mSettings.writeSettings();
+
+
         final View startLayout = (View) findViewById(R.id.start_layout);
         viewFlipper.setDisplayedChild(viewFlipper.indexOfChild(startLayout));
 
@@ -272,14 +295,14 @@ public class MainActivity extends FragmentActivity {
         startButtonDebug.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
 
-                activityDebug();
+//                activityDebug();
 
             }
         });
 
         final Switch startToggleNetwork = (Switch) findViewById(R.id.start_switch_network);
-        //disable
-        startToggleNetwork.setEnabled(false);
+//        //disable
+//        startToggleNetwork.setEnabled(false);
 
 //        if (restricted) {
 //            lockSettings();
@@ -388,9 +411,57 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
+    protected void activityProxy() {
+        curActivity = "proxy";
+        //override activity settings
+        mSettings.setSetting("activity", "proxy");
+        mSettings.writeSettings();
+
+        Log.v("MainActivity", "activityProxy");
+        final View proxyLayout = (View) findViewById(R.id.proxy_layout);
+        viewFlipper.setDisplayedChild(viewFlipper.indexOfChild(proxyLayout));
+
+
+        //get ble
+        final BluetoothAdapter mAdapter = ((BluetoothManager) this.getSystemService(Context.BLUETOOTH_SERVICE))
+                .getAdapter();
+
+        proxyCallback = new ScanCallback() {
+
+            @Override
+            public void onScanResult(int callbackType, ScanResult result) {
+                BluetoothDevice device = result.getDevice();
+                String address = device.getAddress();
+                String name = device.getName();
+
+                proxyFragment.addItem(address, name);
+
+            }
+
+        };
+
+        //get button and bind
+        final Button proxyButtonScan = (Button) findViewById(R.id.proxy_button_scan);
+        proxyButtonScan.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (proxyButtonScan.getText().equals("Scan")) {
+                    mAdapter.getBluetoothLeScanner().startScan(proxyCallback);
+                    proxyButtonScan.setText("Stop");
+                } else {
+                    mAdapter.getBluetoothLeScanner().stopScan(proxyCallback);
+                    proxyButtonScan.setText("Scan");
+                }
+            }
+        });
+    }
+
 
     protected void activityMain(boolean master, final int nodeId, boolean autostart) {
         curActivity = "main";
+
+        //save to settings
+        mSettings.setSetting("id", String.valueOf(nodeId));
+        mSettings.writeSettings();
 
         Log.v("MainActivity", "activityMain");
         final View mainLayout = (View) findViewById(R.id.main_layout);
@@ -401,6 +472,8 @@ public class MainActivity extends FragmentActivity {
 
         //read mode
         boolean locked = Boolean.parseBoolean(mSettings.getSetting("locked", "false"));
+
+        final Switch toggleNetwork = (Switch) findViewById(R.id.start_switch_network);
 
         //bind buttons
         final Button mainButtonService = (Button) findViewById(R.id.main_button_service);
@@ -423,7 +496,13 @@ public class MainActivity extends FragmentActivity {
 //                        activityStart();
 //                    }
                 } else {
-                    startMainService(Integer.toString(nodeId));
+                    String network = NetworkService.SERVICE_BLE;
+                    if (toggleNetwork.isChecked()) {
+                        //use proxy
+                        network = NetworkService.SERVICE_PROXY;
+                    }
+
+                    startMainService(network, Integer.toString(nodeId));
 //                    mainButtonService.setText("Stop");
                 }
             }
@@ -453,7 +532,12 @@ public class MainActivity extends FragmentActivity {
 
         //start
         if (autostart) {
-            startMainService(Integer.toString(nodeId));
+            String network = NetworkService.SERVICE_BLE;
+            if (toggleNetwork.isChecked()) {
+                //use proxy
+                network = NetworkService.SERVICE_PROXY;
+            }
+            startMainService(network, Integer.toString(nodeId));
         }
 
 
@@ -493,6 +577,7 @@ public class MainActivity extends FragmentActivity {
         //add to container
 //        transaction.add(R.id.list_container, nodesFragment);
         transaction.replace(R.id.main_list_container, nodesFragment);
+        transaction.replace(R.id.proxy_list_container, proxyFragment);
 
         transaction.commit();
     }
@@ -620,8 +705,22 @@ public class MainActivity extends FragmentActivity {
         sendMessage(MessageKeys.SERVICE_STATUS, null);
     }
 
-    public void startMainService(String deviceId) {
+    public void startMainService(String network, String deviceId) {
         Log.v("MainActivity", "startService");
+
+        boolean canStart = true;
+
+        //check for proxy
+        if (network.equals("proxy")) {
+            String proxy = mSettings.getSetting("network.proxy", "");
+
+            if (proxy.isEmpty()) {
+                canStart = false;
+
+                activityProxy();
+            }
+
+        }
 
 
 //        Intent i = new Intent(this, MainService.class);
@@ -634,16 +733,11 @@ public class MainActivity extends FragmentActivity {
 
         //use ble
 //        String service = NetworkService.SERVICE_BLE;
-        Switch toggleNetwork = (Switch) findViewById(R.id.start_switch_network);
-        String service = NetworkService.SERVICE_BLE;
-        if (!toggleNetwork.isChecked()) {
-            //use blue
-            service = NetworkService.SERVICE_WIFI;
-        }
 
-        Bundle bundle = new Bundle();
-        bundle.putString("network", service);
-        bundle.putString("deviceId", deviceId);
+        if (canStart) {
+            Bundle bundle = new Bundle();
+            bundle.putString("network", network);
+            bundle.putString("deviceId", deviceId);
 
 //        // Construct our Intent specifying the Service
 //        Intent i = new Intent(this, MainService.class);
@@ -651,12 +745,13 @@ public class MainActivity extends FragmentActivity {
 //        i.putExtra("foo", "bar");
 //        // Start the service
 //        startService(i);
-        sendMessage(MessageKeys.SERVICE_START, bundle);
+            sendMessage(MessageKeys.SERVICE_START, bundle);
+        }
     }
 
     public void stopMainService() {
         Log.v("MainActivity", "stopService");
-        isRunning = false;
+//        isRunning = false;
 
         sendMessage(MessageKeys.SERVICE_STOP, null);
 
@@ -809,6 +904,28 @@ public class MainActivity extends FragmentActivity {
         new IntentIntegrator(this).initiateScan();
     }
 
+
+    public void proxySelect(ProxyView item) {
+        String device = item.address;
+        Log.v("MainActivity", "proxy selected device " + device);
+
+        final BluetoothAdapter mAdapter = ((BluetoothManager) this.getSystemService(Context.BLUETOOTH_SERVICE))
+                .getAdapter();
+
+        mAdapter.getBluetoothLeScanner().stopScan(proxyCallback);
+
+        //save to settings
+        mSettings.setSetting("network.proxy", device);
+        mSettings.writeSettings();
+
+        //go to main activity
+        int nodeId = Integer.parseInt(mSettings.getSetting("id", "0"));
+        activityMain(false, nodeId, true);
+
+
+    }
+
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
@@ -831,5 +948,40 @@ public class MainActivity extends FragmentActivity {
             super.onActivityResult(requestCode, resultCode, data);
         }
     }
+
+
+//    private void showNotification(short clock, NodeView node) {
+//        short missing = (short) Math.min((clock - node.clock), 0);
+//
+//        Intent resultIntent = new Intent(this, MainActivity.class);
+//        // The stack builder object will contain an artificial back stack for the
+//        // started Activity.
+//        // This ensures that navigating backward from the Activity leads out of
+//        // your application to the Home screen.
+//        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+//        // Adds the back stack for the Intent (but not the Intent itself)
+//        stackBuilder.addParentStack(MainActivity.class);
+//        // Adds the Intent that starts the Activity to the top of the stack
+//        stackBuilder.addNextIntent(resultIntent);
+//        PendingIntent pendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+//
+//
+//        Bitmap icon = BitmapFactory.decodeResource(getResources(),
+//                R.drawable.ic_launcher);
+//
+//        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
+//                .setContentTitle("DirectAdvertisement")
+//                .setTicker("DirectAdvertisement")
+//                .setContentText("Node alert for " + node.id + ":" + node.name + " missing for " + String.valueOf(missing))
+//                .setSmallIcon(R.drawable.ic_launcher)
+//                .setLargeIcon(
+//                        Bitmap.createScaledBitmap(icon, 128, 128, false))
+//                .setContentIntent(pendingIntent);
+//
+//        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+//        // mId allows you to update the notification later on.
+//        mNotificationManager.notify(node.id, mBuilder.build());
+//
+//    }
 
 }
