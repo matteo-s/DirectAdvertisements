@@ -108,7 +108,8 @@ public class LocalClockService implements ClockService {
         isActive = true;
         startTimer();
 
-
+        //send update
+        update();
     }
 
     @Override
@@ -120,6 +121,14 @@ public class LocalClockService implements ClockService {
 
         //unbind
         mService.unbindService();
+    }
+
+    private void update() {
+        //notify via msg
+        if (isActive) {
+            Log.v("LocalClockService", "send update for " + String.valueOf(_c));
+            mService.sendMessage(MessageKeys.CLOCK_UPDATE, null);
+        }
     }
 
     private void startTimer() {
@@ -157,14 +166,6 @@ public class LocalClockService implements ClockService {
         }
     }
 
-
-    private void update() {
-        //notify via msg
-        if (isActive) {
-            Log.v("LocalClockService", "send update for " + String.valueOf(_c));
-            mService.sendMessage(MessageKeys.CLOCK_INCREMENT, null);
-        }
-    }
 
     private class ClockTimerTask extends TimerTask {
         public boolean skip = false;

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import it.unitn.android.directadvertisements.app.ServiceConnector;
+import it.unitn.android.directadvertisements.log.LogService;
 
 public class BLEScanner {
 
@@ -32,7 +33,7 @@ public class BLEScanner {
     private Handler mHandler;
 
 
-    public BLEScanner(BluetoothAdapter adapter, ServiceConnector serviceConnector) {
+    public BLEScanner(BluetoothAdapter adapter, ServiceConnector serviceConnector, LogService logger) {
         mAdapter = adapter;
 
         //get scanner
@@ -54,7 +55,7 @@ public class BLEScanner {
         Log.v("BLEScanner", "scanSettings" + mSettings.toString());
 
         //create receiver
-        mReceiver = new BLEReceiver(serviceConnector);
+        mReceiver = new BLEReceiver(serviceConnector, logger);
 
     }
 

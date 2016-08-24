@@ -5,36 +5,56 @@
 package it.unitn.android.directadvertisements.log.local;
 
 import android.content.Context;
+import android.util.Log;
+
+import net.gotev.uploadservice.BinaryUploadRequest;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.net.MalformedURLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.clocks.ClockService;
 import it.unitn.android.directadvertisements.clocks.ClockServiceFactory;
 import it.unitn.android.directadvertisements.log.LogService;
 
 public class LocalLogService implements LogService {
 
+    private Context mContext;
+    private ServiceConnector mService = null;
+
     private Map<String, File> _files;
     private DateFormat _dateFormat;
+    private DateFormat _logFormat;
+
     private File _baseDir;
 
-    public LocalLogService(Context context) {
+    public LocalLogService(Context context, ServiceConnector serviceConnector) {
+        this.mContext = context;
+        this.mService = serviceConnector;
+
         _files = new HashMap();
         _dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        _logFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
         _baseDir = context.getFilesDir();
+
+        //bind
+        mService.bindService();
     }
 
     public void destroy() {
 
+        // unbind
+        mService.unbindService();
     }
 
 /*
@@ -102,21 +122,21 @@ public class LocalLogService implements LogService {
     @Override
     public void debug(String component, String msg) {
         //use single log file
-        msg = "\t debug." + component + " \t" + msg;
+        msg = "debug." + component + " \t " + msg;
         write(getFile("app"), msg);
     }
 
     @Override
     public void error(String component, String msg) {
         //use single log file
-        msg = "\t error." + component + " \t" + msg;
+        msg = "error." + component + " \t " + msg;
         write(getFile("app"), msg);
     }
 
     @Override
     public void info(String component, String msg) {
         //use single log file
-        msg = "\t info." + component + " \t" + msg;
+        msg = "info." + component + " \t " + msg;
         write(getFile("app"), msg);
     }
 
@@ -155,4 +175,49 @@ public class LocalLogService implements LogService {
 //    public void info(String component, String msg) {
 //        write(getFile("info." + component), msg);
 //    }
+
+    public String rotate(String component) {
+        Date now = new Date();
+
+        String path = path(component) + "." + _logFormat.format(now);
+        File rotateFile = new File(path);
+        try {
+            getFile(component);
+            //remove from map and rename
+            _files.remove(component).renameTo(rotateFile);
+
+            return rotateFile.getAbsolutePath();
+        } catch (Exception ex) {
+            return null;
+        }
+
+    }
+
+
+    public void upload(String id, String address, String username, String password) {
+
+        //rotate current log and upload old one
+        String path = rotate("app");
+        if (path != null) {
+            File file = new File(path);
+            String fileName = id + "-" + file.getName();
+            Log.v("LogService", "upload file " + fileName + " to " + address);
+
+            try {
+                final String uploadId = new BinaryUploadRequest(this.mContext, address)
+                        .addHeader("file-name", fileName)
+                        .setBasicAuth(username, password)
+                        .setFileToUpload(path)
+                        .setMaxRetries(2)
+                        .setDelegate(null)
+                        .startUpload();
+            } catch (MalformedURLException e) {
+
+            } catch (FileNotFoundException e) {
+
+            }
+        }
+    }
+
+
 }

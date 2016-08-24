@@ -33,6 +33,7 @@ import java.util.Random;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.app.ServiceConnector;
+import it.unitn.android.directadvertisements.log.LogService;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
@@ -94,6 +95,7 @@ public class WifiNetworkService implements NetworkService {
      */
     private Context mContext;
     private ServiceConnector mService = null;
+    private LogService mLogger = null;
     private Handler mHandler;
 
     /*
@@ -117,7 +119,7 @@ public class WifiNetworkService implements NetworkService {
     boolean hasConnection = false;
 
 
-    public WifiNetworkService(Context context, ServiceConnector serviceConnector) {
+    public WifiNetworkService(Context context, ServiceConnector serviceConnector, LogService logger) {
         this.mManager = null;
         this.mChannel = null;
         this.mReceiver = null;
@@ -128,6 +130,7 @@ public class WifiNetworkService implements NetworkService {
 
         this.mContext = context;
         this.mService = serviceConnector;
+        this.mLogger = logger;
 
 
         //create an handler for delayed tasks

@@ -7,10 +7,12 @@ package it.unitn.android.directadvertisements.network.proxy;
 import java.util.HashMap;
 
 import it.unitn.android.directadvertisements.network.NetworkMessage;
+import it.unitn.android.directadvertisements.network.ble.BLENetworkMessage;
 
 public class ProxyNetworkMessage extends NetworkMessage {
 
-    public static final int SLOTS = 10;
+
+    public static final int SLOTS = BLENetworkMessage.SLOTS;
 
     public ProxyNetworkMessage() {
         sender = 0;
@@ -20,7 +22,53 @@ public class ProxyNetworkMessage extends NetworkMessage {
         clocks = new HashMap<>();
 
         addresses = new HashMap<>();
+
     }
+
+    public static ProxyNetworkMessage parse(NetworkMessage msg) {
+        ProxyNetworkMessage m = new ProxyNetworkMessage();
+        //clone data
+        m.sender = msg.sender;
+        m.clock = msg.clock;
+
+        m.clocks = msg.clocks;
+        m.addresses = msg.addresses;
+
+        //return
+        return m;
+
+    }
+
+    public byte[] buildData() {
+        //use ble
+        BLENetworkMessage bleMessage = new BLENetworkMessage();
+        bleMessage.sender = this.sender;
+        bleMessage.clock = this.clock;
+        bleMessage.address = this.address;
+        bleMessage.addresses = this.addresses;
+        bleMessage.clocks = this.clocks;
+
+
+        return bleMessage.buildManufacturerBytes();
+
+    }
+
+
+    public static ProxyNetworkMessage parseData(byte[] bytes) {
+        BLENetworkMessage bleMessage = BLENetworkMessage.parseManufacturerData(bytes);
+
+        ProxyNetworkMessage m = new ProxyNetworkMessage();
+        //clone data
+        m.sender = bleMessage.sender;
+        m.clock = bleMessage.clock;
+
+        m.clocks = bleMessage.clocks;
+        m.addresses = bleMessage.addresses;
+
+        //return
+        return m;
+    }
+
 
     /*
 * Converters

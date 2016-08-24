@@ -36,7 +36,7 @@
         android:layout_weight="1"
         android:layout_columnWeight="1"
         android:gravity="center"
-        android:text="Hide node"
+        android:text="Hide"
         android:id="@+id/prompt_hide_field" />
 
     <Switch
@@ -45,7 +45,7 @@
         android:layout_weight="1"
         android:layout_columnWeight="1"
         android:gravity="center"
-        android:text="Alert when missing"
+        android:text="Alert"
         android:id="@+id/prompt_alert_field" />
     </GridLayout>
 </LinearLayout>

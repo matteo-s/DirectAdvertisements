@@ -8,9 +8,6 @@ import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanRecord;
 import android.bluetooth.le.ScanResult;
 import android.os.Bundle;
-import android.os.Message;
-import android.os.Messenger;
-import android.os.RemoteException;
 import android.util.Log;
 
 import java.util.List;
@@ -18,16 +15,16 @@ import java.util.List;
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.log.LogService;
-import it.unitn.android.directadvertisements.log.LogServiceUtil;
+import it.unitn.android.directadvertisements.log.LogServiceFactory;
 
 public class BLEReceiver extends ScanCallback {
 
     private ServiceConnector mService = null;
     private LogService mLogger;
 
-    public BLEReceiver(ServiceConnector serviceConnector) {
+    public BLEReceiver(ServiceConnector serviceConnector, LogService logger) {
         this.mService = serviceConnector;
-        mLogger = LogServiceUtil.getLogger();
+        mLogger = logger;
     }
 
     @Override
@@ -69,12 +66,13 @@ public class BLEReceiver extends ScanCallback {
                     } else {
                         vector.append("0");
                     }
+                    vector.append(" ");
                 }
 
                 Log.v("BLEReceiver", "received msg from " + address + " : " + vector.toString());
 
                 //log to file
-                mLogger.info("ble", "received msg from " + address + " : " + vector.toString());
+                mLogger.info("ble", "received msg from " + String.valueOf(n.sender) + " " + address + " " + vector.toString() + " rssi " + String.valueOf(rssi));
 
                 //directly send to service
                 Bundle bundle = new Bundle();
@@ -104,12 +102,13 @@ public class BLEReceiver extends ScanCallback {
                     } else {
                         vector.append("0");
                     }
+                    vector.append(" ");
                 }
 
                 Log.v("BLEReceiver", "received msg from " + address + " : " + vector.toString());
 
                 //log to file
-                mLogger.info("ble", "received msg from " + address + " : " + vector.toString());
+                mLogger.info("ble", "received msg from " + String.valueOf(n.sender) + " " + address + " " + vector.toString() + " rssi " + String.valueOf(rssi));
 
                 //directly send to service
                 Bundle bundle = new Bundle();

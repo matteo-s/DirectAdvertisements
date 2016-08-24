@@ -207,8 +207,8 @@ public class DebugActivity extends FragmentActivity {
             int type = intent.getIntExtra("type", MessageKeys.NOTIFY_MESSAGE);
 
             switch (type) {
-                case MessageKeys.CLOCK_INCREMENT:
-                    Log.v("DebugActivity", "receive clockIncrement");
+                case MessageKeys.CLOCK_UPDATE:
+                    Log.v("DebugActivity", "receive clockUpdate");
 
                     short c = intent.getShortExtra("c", (short) 0);
                     TextView debugClock = (TextView) findViewById(R.id.debug_debug_clock);

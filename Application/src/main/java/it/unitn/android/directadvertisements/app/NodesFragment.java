@@ -270,7 +270,7 @@ public class NodesFragment extends ListFragment {
                                     } else {
                                         settings.clearSetting("node." + Integer.toString(node.id) + ".hide");
                                     }
-                                    if (alert) {
+                                    if (alert && !hide) {
                                         settings.setSetting("node." + Integer.toString(node.id) + ".alert", Boolean.toString(alert));
                                     } else {
                                         settings.clearSetting("node." + Integer.toString(node.id) + ".alert");

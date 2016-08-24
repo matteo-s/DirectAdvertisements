@@ -4,7 +4,6 @@
 
 package it.unitn.android.directadvertisements;
 
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
@@ -12,16 +11,12 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.ViewFlipper;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 
-import it.unitn.android.directadvertisements.app.MainService;
-import it.unitn.android.directadvertisements.app.NodesFragment;
-import it.unitn.android.directadvertisements.log.LogServiceUtil;
-import it.unitn.android.directadvertisements.settings.SettingsService;
+import it.unitn.android.directadvertisements.log.LogServiceFactory;
 
 public class LogActivity extends FragmentActivity {
     @Override
@@ -56,18 +51,28 @@ public class LogActivity extends FragmentActivity {
         //read log from file and populate
         File file = new File(this.getFilesDir(), "app.log");
         StringBuilder logText = new StringBuilder();
+
+        //limit lines
+        int limit = 200;
+
         try {
             if (file.exists()) {
                 //open with append
                 BufferedReader reader = new BufferedReader(new FileReader(file));
                 String line;
 
-                //read settings
+                //read
+                int c = 0;
                 while ((line = reader.readLine()) != null) {
                     //split
                     if (!line.isEmpty()) {
                         logText.append(line);
                         logText.append(System.getProperty("line.separator"));
+                    }
+                    c++;
+                    if (c >= limit) {
+                        //stop
+                        break;
                     }
                 }
 
@@ -77,7 +82,7 @@ public class LogActivity extends FragmentActivity {
             //ignore
         }
 
-         TextView labelField = (TextView) findViewById(R.id.log_field_label);
+        TextView labelField = (TextView) findViewById(R.id.log_field_label);
         labelField.setText("app.log");
 
 
@@ -88,7 +93,7 @@ public class LogActivity extends FragmentActivity {
     }
 
     private void clearLog() {
-        LogServiceUtil.getLogger(this).clear();
+        LogServiceFactory.getLogger(this).clear();
         //load main activity
         activityMain();
     }

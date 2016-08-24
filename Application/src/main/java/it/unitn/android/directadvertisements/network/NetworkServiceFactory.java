@@ -8,6 +8,7 @@ import android.content.Context;
 import android.os.IBinder;
 
 import it.unitn.android.directadvertisements.app.ServiceConnector;
+import it.unitn.android.directadvertisements.log.LogService;
 import it.unitn.android.directadvertisements.network.ble.BLENetworkService;
 import it.unitn.android.directadvertisements.network.proxy.ProxyNetworkService;
 import it.unitn.android.directadvertisements.network.wifi.WifiNetworkService;
@@ -19,7 +20,7 @@ public class NetworkServiceFactory {
 //    private static boolean _available = false;
 //    private static byte counter = 0;
 
-    public static NetworkService getService(String network, Context context) {
+    public static NetworkService getService(String network, Context context, LogService logger) {
 //        if (_service != null) {
 //            if (!_service.getNetwork().equals(network)) {
 //                //stop
@@ -34,13 +35,13 @@ public class NetworkServiceFactory {
         NetworkService _service = null;
         switch (network) {
             case NetworkService.SERVICE_WIFI:
-                _service = new WifiNetworkService(context, new ServiceConnector(context));
+                _service = new WifiNetworkService(context, new ServiceConnector(context), logger);
                 break;
             case NetworkService.SERVICE_BLE:
-                _service = new BLENetworkService(context, new ServiceConnector(context));
+                _service = new BLENetworkService(context, new ServiceConnector(context), logger);
                 break;
             case NetworkService.SERVICE_PROXY:
-                _service = new ProxyNetworkService(context, new ServiceConnector(context));
+                _service = new ProxyNetworkService(context, new ServiceConnector(context), logger);
                 break;
         }
         return _service;

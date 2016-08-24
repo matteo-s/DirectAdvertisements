@@ -16,6 +16,7 @@ import android.util.Log;
 import android.util.SparseArray;
 
 import it.unitn.android.directadvertisements.app.ServiceConnector;
+import it.unitn.android.directadvertisements.log.LogService;
 
 
 public class BLEAdvertiser {
@@ -25,19 +26,24 @@ public class BLEAdvertiser {
     private BluetoothLeAdvertiser mAdvertiser;
     private AdvertiseSettings mSettings;
     private AdvertiseCallback mCallback;
+    private String mAddress;
 
 
     private boolean isActive = false;
     private Handler mHandler;
     private ServiceConnector mService = null;
+    private LogService mLogger;
 
 
-    public BLEAdvertiser(BluetoothAdapter adapter,  ServiceConnector serviceConnector) {
+    public BLEAdvertiser(BluetoothAdapter adapter, ServiceConnector serviceConnector, LogService logger) {
         mAdapter = adapter;
         mService = serviceConnector;
+        mLogger = logger;
 
         //create an handler for delayed tasks
         mHandler = new Handler();
+
+        mAddress = mAdapter.getAddress();
 
         //get advertiser
         mAdvertiser = mAdapter.getBluetoothLeAdvertiser();
@@ -114,10 +120,13 @@ public class BLEAdvertiser {
                 } else {
                     vector.append("0");
                 }
+                vector.append(" ");
             }
 
             Log.v("BLEAdvertiser", "advertise data : " + vector.toString());
 
+            //log to file
+            mLogger.info("ble", "sending  msg from " + String.valueOf(m.sender) + " " + mAddress + " " + vector.toString());
 
             //start
             start(advertiseData, mSettings, new ActionListener() {

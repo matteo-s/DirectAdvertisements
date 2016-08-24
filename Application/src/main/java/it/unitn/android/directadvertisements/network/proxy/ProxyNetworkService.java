@@ -5,8 +5,12 @@
 package it.unitn.android.directadvertisements.network.proxy;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -16,8 +20,11 @@ import android.os.ParcelUuid;
 import android.os.RemoteException;
 import android.util.Log;
 
+import java.util.UUID;
+
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.app.ServiceConnector;
+import it.unitn.android.directadvertisements.log.LogService;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
@@ -31,8 +38,8 @@ public class ProxyNetworkService implements NetworkService {
     /*
     * Constants
      */
-    public static final ParcelUuid Service_UUID = ParcelUuid
-            .fromString("0000b81d-0000-1000-8000-00805f9b34fb");
+    public static final UUID Service_UUID = UUID
+            .fromString("0000b81d-0000-1000-8001-00805f9b34fb");
 
 
     /*
@@ -40,6 +47,7 @@ public class ProxyNetworkService implements NetworkService {
  */
     private Context mContext;
     private ServiceConnector mService = null;
+    private LogService mLogger = null;
     private Handler mHandler;
 
     /*
@@ -62,12 +70,10 @@ public class ProxyNetworkService implements NetworkService {
 
     boolean isConnected = false;
     boolean isActive = false;
-    boolean hasPending = false;
     boolean hasConnection = false;
-    boolean hasLooper = false;
 
 
-    public ProxyNetworkService(Context context, ServiceConnector serviceConnector) {
+    public ProxyNetworkService(Context context, ServiceConnector serviceConnector, LogService logger) {
         mAdapter = null;
         isAvailable = false;
         isSupported = false;
@@ -78,6 +84,7 @@ public class ProxyNetworkService implements NetworkService {
 
         this.mContext = context;
         this.mService = serviceConnector;
+        this.mLogger = logger;
 
         //create an handler for delayed tasks
         mHandler = new Handler();
@@ -116,8 +123,7 @@ public class ProxyNetworkService implements NetworkService {
             this.mDevice = bundle.getString("network.proxy");
 
             Log.v("ProxyNetworkService", "init for device " + mDevice);
-            mAdapter = ((BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE))
-                    .getAdapter();
+            mAdapter = BluetoothAdapter.getDefaultAdapter();
 
             if (mAdapter != null) {
                 isSupported = true;
@@ -158,10 +164,23 @@ public class ProxyNetworkService implements NetworkService {
 
         } else {
             //start connection
+            if (mClient == null) {
+                mClient = new ProxyClient(mAdapter, mService, mLogger);
+            }
 
+            //request connection
+            mClient.connect(mDevice);
 
-            //start indefinitely
-            isActive = true;
+            if (mClient.isConnected()) {
+                //start indefinitely
+                isActive = true;
+
+                mContext.registerReceiver(mReceiver, new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED));
+
+            } else {
+                deactivate();
+            }
+
         }
 
     }
@@ -173,11 +192,17 @@ public class ProxyNetworkService implements NetworkService {
         //set inactive
         isActive = false;
 
-        //stop looper
-        hasLooper = false;
+        try {
+            mContext.unregisterReceiver(mReceiver);
+        } catch (Exception ex) {
+        }
+
+        if (mClient != null) {
+            mClient.disconnect();
+        }
+
 
         //clear status
-        hasPending = false;
         hasConnection = false;
 
         mService.sendMessage(MessageKeys.NETWORK_STOP, null);
@@ -199,7 +224,12 @@ public class ProxyNetworkService implements NetworkService {
      */
     @Override
     public void broadcast(NetworkMessage msg) {
+        //replace message
+        mMessage = ProxyNetworkMessage.parse(msg);
 
+        if (mClient != null && mClient.isConnected()) {
+            mClient.send(mMessage);
+        }
     }
 
 
@@ -272,5 +302,33 @@ public class ProxyNetworkService implements NetworkService {
         return adapter.getAddress();
     }
 
+    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE,
+                    BluetoothDevice.ERROR);
+
+            if (state == BluetoothDevice.BOND_BONDED) {
+                Log.v("ProxyNetworkService", "Device " + device + " PAIRED");
+            } else if (state == BluetoothDevice.BOND_BONDING) {
+                Log.v("ProxyNetworkService", "Device " + device + " pairing is in process...");
+            } else if (state == BluetoothDevice.BOND_NONE) {
+                Log.v("ProxyNetworkService", "Device " + device + " is unpaired");
+
+                //check for active connection and restart
+                if (isActive) {
+                    if (mClient != null && mDevice != null) {
+                        mClient.disconnect();
+                        mClient.connect(mDevice);
+                    }
+                }
+
+
+            } else {
+                Log.v("ProxyNetworkService", "Device " + device + " is in undefined state");
+            }
+        }
+    };
 
 }

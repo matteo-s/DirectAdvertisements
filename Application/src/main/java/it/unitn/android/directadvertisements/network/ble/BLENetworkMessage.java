@@ -120,6 +120,14 @@ public class BLENetworkMessage extends NetworkMessage {
         dataBuilder.setIncludeTxPowerLevel(true);
         dataBuilder.setIncludeDeviceName(false);
 
+        byte[] bytes = buildManufacturerBytes();
+
+        //add as manufacturer - id used is Google's one
+        dataBuilder.addManufacturerData(224, bytes);
+        return dataBuilder.build();
+    }
+
+    public byte[] buildManufacturerBytes() {
         //build on manufacturer data - use 24 bytes
         /*
         * Structure of packet
@@ -171,9 +179,7 @@ public class BLENetworkMessage extends NetworkMessage {
             k = k + 1;
         }
 
-        //add as manufacturer - id used is Google's one
-        dataBuilder.addManufacturerData(224, bytes);
-        return dataBuilder.build();
+        return bytes;
     }
 
     public byte[] buildTemplateData() {

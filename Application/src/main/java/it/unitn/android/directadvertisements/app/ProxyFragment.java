@@ -44,10 +44,10 @@ public class ProxyFragment extends ListFragment {
 
         viewAdapter.clear();
 
-//        viewAdapter.addAll(mItems);
-        for (ProxyView w : mItems) {
-            viewAdapter.add(w);
-        }
+        viewAdapter.addAll(mItems);
+//        for (ProxyView w : mItems) {
+//            viewAdapter.add(w);
+//        }
         viewAdapter.notifyDataSetChanged();
 
         Log.v("ProxyFragment", "refreshed count " + String.valueOf(viewAdapter.getCount()));

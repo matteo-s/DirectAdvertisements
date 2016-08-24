@@ -21,6 +21,7 @@ import java.util.Random;
 
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.app.ServiceConnector;
+import it.unitn.android.directadvertisements.log.LogService;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
@@ -47,6 +48,7 @@ public class BLENetworkService implements NetworkService {
  */
     private Context mContext;
     private ServiceConnector mService = null;
+    private LogService mLogger = null;
     private Handler mHandler;
 
     /*
@@ -82,7 +84,7 @@ public class BLENetworkService implements NetworkService {
     boolean hasDiscoveryPending = false;
     boolean hasDiscoveryLooper = false;
 
-    public BLENetworkService(Context context, ServiceConnector serviceConnector) {
+    public BLENetworkService(Context context, ServiceConnector serviceConnector, LogService logger) {
         mAdapter = null;
         isAvailable = false;
         isSupported = false;
@@ -91,6 +93,7 @@ public class BLENetworkService implements NetworkService {
 
         this.mContext = context;
         this.mService = serviceConnector;
+        this.mLogger = logger;
 
         //create an handler for delayed tasks
         mHandler = new Handler();
@@ -167,13 +170,13 @@ public class BLENetworkService implements NetworkService {
 
         //start scanner
         if (mScanner == null) {
-            mScanner = new BLEScanner(mAdapter, mService);
+            mScanner = new BLEScanner(mAdapter, mService, mLogger);
         }
 
         //start advertiser
         if (mAdvertiser == null) {
             //create
-            mAdvertiser = new BLEAdvertiser(mAdapter, mService);
+            mAdvertiser = new BLEAdvertiser(mAdapter, mService, mLogger);
 
         }
 
@@ -182,6 +185,10 @@ public class BLENetworkService implements NetworkService {
 
         //start indefinitely
         isActive = true;
+
+        //logger
+        mLogger.info("ble", "activate");
+
 
 //        //start one-shot discovery
 //        discovery(new ActionListener() {
@@ -212,6 +219,9 @@ public class BLENetworkService implements NetworkService {
 
         //set inactive
         isActive = false;
+
+        //logger
+        mLogger.info("ble", "deactivate");
 
         //stop loopers
         hasCycleLooper = false;
