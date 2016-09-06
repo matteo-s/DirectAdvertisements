@@ -2,7 +2,7 @@
  * Created by mat - 2016
  */
 
-package it.unitn.android.directadvertisements.network.proxy;
+package it.unitn.android.directadvertisements.network.bluetooth;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -19,7 +19,6 @@ import java.util.Arrays;
 import it.unitn.android.directadvertisements.app.MessageKeys;
 import it.unitn.android.directadvertisements.app.ServiceConnector;
 import it.unitn.android.directadvertisements.log.LogService;
-import it.unitn.android.directadvertisements.log.LogServiceFactory;
 
 public class ProxyClient {
     private BluetoothAdapter mAdapter;

@@ -2,7 +2,7 @@
  * Created by mat - 2016
  */
 
-package it.unitn.android.directadvertisements.network.proxy;
+package it.unitn.android.directadvertisements.network.bluetooth;
 
 import java.util.HashMap;
 

@@ -2,22 +2,16 @@
  * Created by mat - 2016
  */
 
-package it.unitn.android.directadvertisements.network.proxy;
+package it.unitn.android.directadvertisements.network.bluetooth;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.IBinder;
-import android.os.Message;
-import android.os.Messenger;
-import android.os.ParcelUuid;
-import android.os.RemoteException;
 import android.util.Log;
 
 import java.util.UUID;
@@ -28,9 +22,6 @@ import it.unitn.android.directadvertisements.log.LogService;
 import it.unitn.android.directadvertisements.network.NetworkMessage;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
-import it.unitn.android.directadvertisements.network.ble.BLEAdvertiser;
-import it.unitn.android.directadvertisements.network.ble.BLENetworkMessage;
-import it.unitn.android.directadvertisements.network.ble.BLEScanner;
 import it.unitn.android.directadvertisements.registry.NetworkRegistryUtil;
 
 public class ProxyNetworkService implements NetworkService {
