@@ -150,10 +150,12 @@ public class ProxyClient {
 
     public void reset() {
         Log.v("ProxyClient", "reset");
+        String address = mBluetoothDeviceAddress;
+        
         disconnect();
 
-        if (!mBluetoothDeviceAddress.isEmpty()) {
-            connect(mBluetoothDeviceAddress);
+        if (!address.isEmpty()) {
+            connect(address);
         }
 
 
