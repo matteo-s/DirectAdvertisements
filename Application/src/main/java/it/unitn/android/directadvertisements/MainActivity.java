@@ -4,17 +4,29 @@
 
 package it.unitn.android.directadvertisements;
 
+import android.Manifest;
+import android.annotation.TargetApi;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanRecord;
+import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Message;
@@ -41,8 +53,10 @@ import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import it.unitn.android.directadvertisements.app.MainService;
 import it.unitn.android.directadvertisements.app.MessageKeys;
@@ -52,6 +66,8 @@ import it.unitn.android.directadvertisements.app.ProxyView;
 import it.unitn.android.directadvertisements.log.LogServiceFactory;
 import it.unitn.android.directadvertisements.network.NetworkNode;
 import it.unitn.android.directadvertisements.network.NetworkService;
+import it.unitn.android.directadvertisements.network.ble.ProxyClient;
+import it.unitn.android.directadvertisements.network.ble.ProxyNetworkService;
 import it.unitn.android.directadvertisements.settings.SettingsService;
 import it.unitn.android.directadvertisements.settings.SettingsServiceUtil;
 
@@ -70,12 +86,14 @@ public class MainActivity extends FragmentActivity {
     ViewFlipper viewFlipper;
     SettingsService mSettings;
 
-    BroadcastReceiver mCallback;
+    //BroadcastReceiver mCallback;
+    ScanCallback mCallback;
 
     int nodeCount = 0;
     String curActivity = "loading";
     boolean restricted = false;
     boolean isRunning = false;
+    boolean hasPermission = true;
 
     int mId;
     String mNetwork;
@@ -146,6 +164,8 @@ public class MainActivity extends FragmentActivity {
 //    }
 
 
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -153,6 +173,8 @@ public class MainActivity extends FragmentActivity {
         setTitle(R.string.activity_main_title);
 
         Log.v("MainActivity", "onCreate");
+
+        activityPermission();
 
         Intent i = new Intent(this, MainService.class);
         // Start the service
@@ -239,6 +261,32 @@ public class MainActivity extends FragmentActivity {
         }
     }
 
+    //add an annotation for permission requests
+    @TargetApi(23)
+    protected void activityPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Android M Permission check
+            if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("Permission request");
+                builder.setMessage("Please grant location access so this app can detect beacons.");
+                builder.setPositiveButton(android.R.string.ok, null);
+                builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialog) {
+                        requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+                    }
+                });
+                builder.show();
+
+                //consider as true
+                hasPermission = true;
+            }
+        } else {
+            hasPermission = true;
+        }
+    }
+
 
     protected void activityLoading() {
         curActivity = "loading";
@@ -257,6 +305,11 @@ public class MainActivity extends FragmentActivity {
     }
 
     protected void activityStart() {
+        //call permission first
+        if(!hasPermission) {
+            activityPermission();
+        }
+
         curActivity = "start";
 
         Log.v("MainActivity", "activityStart");
@@ -456,6 +509,11 @@ public class MainActivity extends FragmentActivity {
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
+        final BluetoothLeScanner mScanner = mAdapter.getBluetoothLeScanner();
+        final ScanFilter mScanFilter = new ScanFilter.Builder().setServiceUuid(ProxyNetworkService.Service_UUID).build();
+        final ScanSettings  mSettings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
+
+        /*
         // Create a BroadcastReceiver for ACTION_FOUND
         mCallback = new BroadcastReceiver() {
             public void onReceive(Context context, Intent intent) {
@@ -484,7 +542,40 @@ public class MainActivity extends FragmentActivity {
                 }
             }
         };
+*/
+        mCallback = new ScanCallback() {
+            @Override
+            public void onScanFailed(int errorCode) {
 
+//        super.onScanFailed(errorCode);
+                Log.v("MainActivity", "onScanFailed " + String.valueOf(errorCode));
+
+
+            }
+
+            @Override
+            public void onScanResult(int callbackType, ScanResult result) {
+
+                Log.v("MainActivity", "onScanResult " + String.valueOf(callbackType));
+
+//        //call super first - DISABLED
+//        super.onScanResult(callbackType, result);
+
+                //check data
+                if (result != null
+                        && result.getDevice() != null
+                        && result.getScanRecord() != null) {
+
+                    ScanRecord record = result.getScanRecord();
+                    String address = result.getDevice().getAddress();
+                    String name = result.getDevice().getName();
+
+                    //add every device
+                    proxyFragment.addItem(address, name);
+
+                }
+            }
+        };
 
         //get button and bind
         final Button proxyButtonScan = (Button) findViewById(R.id.proxy_button_scan);
@@ -492,23 +583,32 @@ public class MainActivity extends FragmentActivity {
             public void onClick(View v) {
                 if (proxyButtonScan.getText().equals("Scan")) {
                     Log.v("MainActivity", "start bluetooth discovery");
-
+/*
                     // Register the BroadcastReceiver
                     IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
                     registerReceiver(mCallback, filter);
                     //start discovery
                     mAdapter.startDiscovery();
+*/
+                    List<ScanFilter> filters = new ArrayList<>();
+                    filters.add(mScanFilter);
+                    //mScanner.startScan(filters, mSettings, mReceiver);
+                    mScanner.startScan(mCallback);
 
                     proxyButtonScan.setText("Stop");
                 } else {
                     Log.v("MainActivity", "cancel bluetooth discovery");
 
+                    /*
                     mAdapter.cancelDiscovery();
                     //unregister
                     try {
                         unregisterReceiver(mCallback);
                     } catch (Exception ex) {
                     }
+                    */
+                    mScanner.stopScan(mCallback);
+
                     proxyButtonScan.setText("Scan");
                 }
             }
@@ -983,6 +1083,7 @@ public class MainActivity extends FragmentActivity {
         Log.v("MainActivity", "proxy selected device " + device);
 
         final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+       /*
         //cancel discovery if running
         mAdapter.cancelDiscovery();
 
@@ -992,6 +1093,11 @@ public class MainActivity extends FragmentActivity {
                 unregisterReceiver(mCallback);
             } catch (Exception ex) {
             }
+        }
+*/
+        final BluetoothLeScanner mScanner = mAdapter.getBluetoothLeScanner();
+        if(mCallback != null) {
+            mScanner.stopScan(mCallback);
         }
 
         //save to settings

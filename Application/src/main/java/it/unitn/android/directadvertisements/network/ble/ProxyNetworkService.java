@@ -141,15 +141,9 @@ public class ProxyNetworkService implements NetworkService {
 //                //read address
 //                _address = readAddress(mAdapter);
 
-                    //check for capabilities
-                    if (mAdapter.isMultipleAdvertisementSupported()) {
-                        //set as active
-                        isAvailable = true;
+                    isAvailable = true;
 
-                    } else {
-                        //disable support
-                        isSupported = false;
-                    }
+
 
                 } else {
                     //set not active

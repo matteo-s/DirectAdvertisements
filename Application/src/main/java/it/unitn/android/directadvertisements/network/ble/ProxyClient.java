@@ -44,8 +44,7 @@ public class ProxyClient {
     private static final int STATE_CONNECTED = 2;
 
     public static final String SERVICE_UUID = "0000b81d-0000-1000-8000-00805f9b34fb";
-    public static final String CHARACTERISTIC_UUID = "00001110-0000-1000-8999-00805f9b34fb";
-
+    public static final String CHARACTERISTIC_UUID = "00001110-0000-1000-8000-00805f9b34fb";
 
 //    private ConnectedThread mConnection;
 
@@ -163,6 +162,8 @@ public class ProxyClient {
 
 
     public void send(BLENetworkMessage m) {
+        Log.v("ProxyClient", "request write data isConnected " + String.valueOf(mConnectionState));
+
         if (isConnected()) {
 
             StringBuilder vector = new StringBuilder();
@@ -190,16 +191,36 @@ public class ProxyClient {
             if (service != null) {
                 BluetoothGattCharacteristic characteristic = service.getCharacteristic(
                         UUID.fromString(CHARACTERISTIC_UUID));
+                if(characteristic != null) {
 
-                characteristic.setValue(bytes);
+                    characteristic.setValue(bytes);
 
-                if (mBluetoothGatt.writeCharacteristic(characteristic) == false) {
-                    Log.v("ProxyClient", "write characteristic error");
+                    if (mBluetoothGatt.writeCharacteristic(characteristic) == false) {
+                        Log.v("ProxyClient", "write characteristic error");
+                    } else {
+                        Log.v("ProxyClient", "write characteristic success");
+                    }
                 } else {
-                    Log.v("ProxyClient", "write characteristic success");
+                    Log.v("ProxyClient", "characteristic not found");
+                    List<BluetoothGattCharacteristic> chs = service.getCharacteristics();
+
+                    for(BluetoothGattCharacteristic ch : chs) {
+                        Log.v("ProxyClient","available service ch "+ch.getUuid().toString());
+                    }
+                }
+            } else {
+                Log.v("ProxyClient","service not found");
+
+                //dump services
+                List<BluetoothGattService> services = mBluetoothGatt.getServices();
+                for(BluetoothGattService sc : services) {
+                    Log.v("ProxyClient","available gatt service "+sc.getUuid().toString());
                 }
 
             }
+        } else if(mConnectionState == STATE_DISCONNECTED && mBluetoothDeviceAddress != null) {
+            connect(mBluetoothDeviceAddress);
+
         }
     }
 
@@ -277,8 +298,8 @@ public class ProxyClient {
 
                         Log.v("ProxyClient", "Connected to GATT server.");
                         // Attempts to discover services after successful connection.
-                        Log.v("ProxyClient", "Attempting to start service discovery:" +
-                                mBluetoothGatt.discoverServices());
+                        mBluetoothGatt.discoverServices();
+                        Log.v("ProxyClient", "Attempting to start service discovery");
 
                     } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                         mConnectionState = STATE_DISCONNECTED;
